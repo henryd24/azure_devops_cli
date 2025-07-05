@@ -4,8 +4,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var groupName string
-
 var GetCmd = &cobra.Command{
 	Use:   "get",
 	Short: "Comandos para obtener recursos",

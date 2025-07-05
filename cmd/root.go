@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var RootCmd = &cobra.Command{ // <- Ahora es exportada
+var RootCmd = &cobra.Command{
 	Use:   "azurevgcli",
 	Short: "CLI para Azure DevOps",
 }
