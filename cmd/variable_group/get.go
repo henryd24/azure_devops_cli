@@ -12,7 +12,7 @@ import (
 )
 
 var getVariableGroupCmd = &cobra.Command{
-	Use:   "variablegroup",
+	Use:   "get",
 	Short: "Obtiene un Variable Group por nombre",
 	Run: func(cmd *cobra.Command, args []string) {
 		groupName, err := cmd.Flags().GetString("name")
@@ -45,5 +45,5 @@ var getVariableGroupCmd = &cobra.Command{
 
 func init() {
 	getVariableGroupCmd.Flags().StringP("name", "n", "", "Nombre del variable group")
-	cmd.GetCmd.AddCommand(getVariableGroupCmd)
+	cmd.Variables.AddCommand(getVariableGroupCmd)
 }

@@ -12,7 +12,7 @@ import (
 )
 
 var updateVariableGroupCmd = &cobra.Command{
-	Use:   "variablegroup",
+	Use:   "update",
 	Short: "Actualiza un Variable Group por nombre",
 	Run: func(cmd *cobra.Command, args []string) {
 		groupName, err := cmd.Flags().GetString("name")
@@ -72,5 +72,5 @@ var updateVariableGroupCmd = &cobra.Command{
 func init() {
 	updateVariableGroupCmd.Flags().StringP("name", "n", "", "Nombre del variable group")
 	updateVariableGroupCmd.Flags().StringSliceP("variables", "v", nil, "Variables a agregar en formato: clave=valor o secret:clave=valor")
-	cmd.UpdateCmd.AddCommand(updateVariableGroupCmd)
+	cmd.Variables.AddCommand(updateVariableGroupCmd)
 }
