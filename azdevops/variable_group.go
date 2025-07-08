@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"azurevgcli/models"
+	"maps"
 )
 
 func (c *Client) ListVariableGroups() ([]models.VariableGroup, error) {
@@ -76,12 +77,8 @@ func (c *Client) GetVariableGroupByName(name string) ([]models.VariableGroup, er
 func (c *Client) AddVariablesToGroup(variableGroup models.VariableGroup, variables map[string]models.VariableVal) (bool, error) {
 	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/distributedtask/variablegroups/%d?api-version=7.1-preview.2", c.Org, c.Project, variableGroup.Id)
 	mergedVars := make(map[string]models.VariableVal)
-	for k, v := range variableGroup.Variables {
-		mergedVars[k] = v
-	}
-	for k, v := range variables {
-		mergedVars[k] = v
-	}
+	maps.Copy(mergedVars, variableGroup.Variables)
+	maps.Copy(mergedVars, variables)
 
 	group := models.VariableGroupById{
 		ID:                             variableGroup.Id,

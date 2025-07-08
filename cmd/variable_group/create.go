@@ -11,9 +11,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var updateVariableGroupCmd = &cobra.Command{
-	Use:   "update",
-	Short: "Actualiza un Variable Group por nombre",
+var createVariableGroupCmd = &cobra.Command{
+	Use:   "create",
+	Short: "Create a new variable group",
 	Run: func(cmd *cobra.Command, args []string) {
 		groupName, err := cmd.Flags().GetString("name")
 		if err != nil {
@@ -58,27 +58,19 @@ var updateVariableGroupCmd = &cobra.Command{
 				IsSecret: isSecret,
 			}
 		}
-		groups, err := client.GetVariableGroupByName(groupName)
+		getVariableGroup, err := client.GetVariableGroupByName(groupName)
 		if err != nil {
 			log.Fatalf("Error al obtener el Variable Group: %v", err)
 		}
-		if len(groups) > 1 {
-			log.Fatalf("Se esperó un solo Variable Group con nombre '%s', pero se encontraron %d", groupName, len(groups))
-		}
-		if len(groups) == 0 {
-			log.Fatalf("No existe un Variable Group con nombre '%s'. Usa el comando 'create' para crearlo.", groupName)
-		}
-
-		group := groups[0]
-		log.Printf("Actualizando Variable Group: %s (ID: %d)", group.Name, group.Id)
-		if _, err := client.AddVariablesToGroup(group, newVariablesMap); err != nil {
-			log.Fatalf("Error al agregar variables al grupo: %v", err)
+		_, outputErr := client.AddVariablesToGroup(getVariableGroup[0], newVariablesMap)
+		if outputErr != nil {
+			log.Fatalf("Error al agregar variables al grupo: %v", outputErr)
 		}
 	},
 }
 
 func init() {
-	updateVariableGroupCmd.Flags().StringP("name", "n", "", "Nombre del variable group")
-	updateVariableGroupCmd.Flags().StringSliceP("variables", "v", nil, "Variables a agregar en formato: clave=valor o secret:clave=valor")
-	cmd.Variables.AddCommand(updateVariableGroupCmd)
+	createVariableGroupCmd.Flags().StringP("name", "n", "", "Name of the variable group")
+	createVariableGroupCmd.Flags().StringSliceP("variables", "v", []string{}, "Variables in the format key=value or secret:key=value")
+	cmd.Variables.AddCommand(createVariableGroupCmd)
 }
