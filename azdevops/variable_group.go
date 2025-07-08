@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"azurevgcli/models"
+	"azuredevops/models"
 	"maps"
 )
 

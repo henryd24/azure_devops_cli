@@ -7,7 +7,7 @@ import (
 )
 
 var RootCmd = &cobra.Command{
-	Use:   "azurevgcli",
+	Use:   "azuredevops",
 	Short: "CLI para Azure DevOps",
 }
 

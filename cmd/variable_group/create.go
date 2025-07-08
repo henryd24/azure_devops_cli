@@ -4,9 +4,9 @@ import (
 	"log"
 	"strings"
 
-	"azurevgcli/azdevops"
-	"azurevgcli/cmd"
-	"azurevgcli/models"
+	"azuredevops/azdevops"
+	"azuredevops/cmd"
+	"azuredevops/models"
 
 	"github.com/spf13/cobra"
 )

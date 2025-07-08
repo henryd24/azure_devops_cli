@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	"azurevgcli/azdevops"
-	"azurevgcli/cmd"
+	"azuredevops/azdevops"
+	"azuredevops/cmd"
 
 	"github.com/spf13/cobra"
 )

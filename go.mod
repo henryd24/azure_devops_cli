@@ -1,4 +1,4 @@
-module azurevgcli
+module azuredevops
 
 go 1.23.9
 

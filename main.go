@@ -1,8 +1,8 @@
 package main
 
 import (
-	"azurevgcli/cmd"
-	_ "azurevgcli/cmd/variable_group"
+	"azuredevops/cmd"
+	_ "azuredevops/cmd/variable_group"
 )
 
 func main() {
