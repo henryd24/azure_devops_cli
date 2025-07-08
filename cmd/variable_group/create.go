@@ -16,6 +16,7 @@ var createVariableGroupCmd = &cobra.Command{
 	Short: "Create a new variable group",
 	Run: func(cmd *cobra.Command, args []string) {
 		groupName, err := cmd.Flags().GetString("name")
+		description, _ := cmd.Flags().GetString("description")
 		if err != nil {
 			log.Fatalf("Error al obtener el nombre del grupo: %v", err)
 		}
@@ -59,10 +60,12 @@ var createVariableGroupCmd = &cobra.Command{
 			}
 		}
 		getVariableGroup, err := client.GetVariableGroupByName(groupName)
-		if err != nil {
+		if err == nil && len(getVariableGroup) > 0 {
+			log.Fatalf("El Variable Group '%s' ya existe. Usa otro nombre.", groupName)
+		} else if err != nil && !strings.Contains(err.Error(), "Variable group not found") {
 			log.Fatalf("Error al obtener el Variable Group: %v", err)
 		}
-		_, outputErr := client.AddVariablesToGroup(getVariableGroup[0], newVariablesMap)
+		_, outputErr := client.CreateVariableGroup(groupName, newVariablesMap, description)
 		if outputErr != nil {
 			log.Fatalf("Error al agregar variables al grupo: %v", outputErr)
 		}
@@ -72,5 +75,6 @@ var createVariableGroupCmd = &cobra.Command{
 func init() {
 	createVariableGroupCmd.Flags().StringP("name", "n", "", "Name of the variable group")
 	createVariableGroupCmd.Flags().StringSliceP("variables", "v", []string{}, "Variables in the format key=value or secret:key=value")
+	createVariableGroupCmd.Flags().StringP("description", "d", "", "Description of the variable group (optional)")
 	cmd.Variables.AddCommand(createVariableGroupCmd)
 }

@@ -31,10 +31,13 @@ type ProjectReference struct {
 	Name string `json:"name"`
 }
 
-func ConstructVariableGroupProjectReferences(project string, variableName string) []VariableGroupProjectReferences {
+func ConstructVariableGroupProjectReferences(project string, variableName string, description string) []VariableGroupProjectReferences {
+	if description == "" {
+		description = "Default description"
+	}
 	return []VariableGroupProjectReferences{
 		{
-			Description: "Project reference",
+			Description: description,
 			Name:        variableName,
 			ProjectReference: ProjectReference{
 				ID:   "",

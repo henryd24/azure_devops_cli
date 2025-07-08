@@ -16,6 +16,7 @@ var updateVariableGroupCmd = &cobra.Command{
 	Short: "Actualiza un Variable Group por nombre",
 	Run: func(cmd *cobra.Command, args []string) {
 		groupName, err := cmd.Flags().GetString("name")
+		description, _ := cmd.Flags().GetString("description")
 		if err != nil {
 			log.Fatalf("Error al obtener el nombre del grupo: %v", err)
 		}
@@ -70,8 +71,7 @@ var updateVariableGroupCmd = &cobra.Command{
 		}
 
 		group := groups[0]
-		log.Printf("Actualizando Variable Group: %s (ID: %d)", group.Name, group.Id)
-		if _, err := client.AddVariablesToGroup(group, newVariablesMap); err != nil {
+		if _, err := client.AddVariablesToGroup(group, newVariablesMap, description); err != nil {
 			log.Fatalf("Error al agregar variables al grupo: %v", err)
 		}
 	},
@@ -80,5 +80,6 @@ var updateVariableGroupCmd = &cobra.Command{
 func init() {
 	updateVariableGroupCmd.Flags().StringP("name", "n", "", "Nombre del variable group")
 	updateVariableGroupCmd.Flags().StringSliceP("variables", "v", nil, "Variables a agregar en formato: clave=valor o secret:clave=valor")
+	updateVariableGroupCmd.Flags().StringP("description", "d", "", "Descripción del variable group (opcional)")
 	cmd.Variables.AddCommand(updateVariableGroupCmd)
 }
