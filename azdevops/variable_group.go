@@ -11,27 +11,6 @@ import (
 	"maps"
 )
 
-func (c *Client) ListVariableGroups() ([]models.VariableGroup, error) {
-	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/distributedtask/variablegroups?api-version=7.1-preview.2", c.Org, c.Project)
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Add("Authorization", c.authHeader())
-
-	resp, err := c.HTTP.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	var result struct {
-		Value []models.VariableGroup `json:"value"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
-	}
-	return result.Value, nil
-}
-
 func (c *Client) CreateVariableGroup(name string, variables map[string]models.VariableVal, description string) (bool, error) {
 	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/distributedtask/variablegroups?api-version=7.1-preview.2", c.Org, c.Project)
 	group := models.VariableGroupById{
