@@ -1,4 +1,4 @@
-package variable_groups
+package variable_group
 
 import (
 	"encoding/json"
@@ -7,7 +7,7 @@ import (
 
 	"azuredevops/azdevops"
 	"azuredevops/cmd"
-
+	vg "azuredevops/azdevops/variable_group"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +25,7 @@ var getVariableGroupCmd = &cobra.Command{
 
 		client := azdevops.GetClientFromEnv()
 
-		group, err := client.GetVariableGroupByName(groupName)
+		group, err := vg.GetVariableGroupByName(client, groupName)
 		if err != nil {
 			log.Fatalf("Error: %v", err)
 		}

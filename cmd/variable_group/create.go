@@ -1,13 +1,13 @@
-package variable_groups
+package variable_group
 
 import (
 	"log"
 	"strings"
 
 	"azuredevops/azdevops"
+	vg "azuredevops/azdevops/variable_group"
 	"azuredevops/cmd"
 	"azuredevops/models"
-
 	"github.com/spf13/cobra"
 )
 
@@ -59,13 +59,13 @@ var createVariableGroupCmd = &cobra.Command{
 				IsSecret: isSecret,
 			}
 		}
-		getVariableGroup, err := client.GetVariableGroupByName(groupName)
+		getVariableGroup, err := vg.GetVariableGroupByName(client, groupName)
 		if err == nil && len(getVariableGroup) > 0 {
 			log.Fatalf("El Variable Group '%s' ya existe. Usa otro nombre.", groupName)
 		} else if err != nil && !strings.Contains(err.Error(), "Variable group not found") {
 			log.Fatalf("Error al obtener el Variable Group: %v", err)
 		}
-		_, outputErr := client.CreateVariableGroup(groupName, newVariablesMap, description)
+		_, outputErr := vg.CreateVariableGroup(client, groupName, newVariablesMap, description)
 		if outputErr != nil {
 			log.Fatalf("Error al agregar variables al grupo: %v", outputErr)
 		}

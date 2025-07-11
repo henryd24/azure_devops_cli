@@ -1,13 +1,13 @@
-package variable_groups
+package variable_group
 
 import (
 	"log"
 	"strings"
 
 	"azuredevops/azdevops"
+	vg "azuredevops/azdevops/variable_group"
 	"azuredevops/cmd"
 	"azuredevops/models"
-
 	"github.com/spf13/cobra"
 )
 
@@ -16,10 +16,10 @@ var updateVariableGroupCmd = &cobra.Command{
 	Short: "Actualiza un Variable Group por nombre",
 	Run: func(cmd *cobra.Command, args []string) {
 		groupName, err := cmd.Flags().GetString("name")
-		description, _ := cmd.Flags().GetString("description")
 		if err != nil {
 			log.Fatalf("Error al obtener el nombre del grupo: %v", err)
 		}
+		description, _ := cmd.Flags().GetString("description")
 
 		newVariables, err := cmd.Flags().GetStringSlice("variables")
 		if err != nil {
@@ -59,7 +59,7 @@ var updateVariableGroupCmd = &cobra.Command{
 				IsSecret: isSecret,
 			}
 		}
-		groups, err := client.GetVariableGroupByName(groupName)
+		groups, err := vg.GetVariableGroupByName(client, groupName)
 		if err != nil {
 			log.Fatalf("Error al obtener el Variable Group: %v", err)
 		}
@@ -71,7 +71,11 @@ var updateVariableGroupCmd = &cobra.Command{
 		}
 
 		group := groups[0]
-		if _, err := client.AddVariablesToGroup(group, newVariablesMap, description); err != nil {
+		desc := group.Description
+		if description != "" {
+			desc = description
+		}
+		if _, err := vg.AddVariablesToGroup(client, group, newVariablesMap, desc); err != nil {
 			log.Fatalf("Error al agregar variables al grupo: %v", err)
 		}
 	},

@@ -39,3 +39,6 @@ func GetClientFromEnv() *Client {
 func (c *Client) authHeader() string {
 	return "Basic " + base64.StdEncoding.EncodeToString([]byte(":"+c.PAT))
 }
+func (c *Client) AuthHeader() string {
+	return "Basic " + base64.StdEncoding.EncodeToString([]byte(":"+c.PAT))
+}

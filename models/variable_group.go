@@ -1,9 +1,13 @@
 package models
 
 type VariableGroup struct {
-	Id        int                    `json:"id,omitempty"`
-	Name      string                 `json:"name"`
-	Variables map[string]VariableVal `json:"variables"`
+	Id                             int                              `json:"id,omitempty"`
+	Name                           string                           `json:"name"`
+	Type                           string                           `json:"type,omitempty"`
+	Description                    string                           `json:"description,omitempty"`
+	IsShared                       bool                             `json:"isShared,omitempty"`
+	Variables                      map[string]VariableVal           `json:"variables"`
+	VariableGroupProjectReferences []VariableGroupProjectReferences `json:"variableGroupProjectReferences,omitempty"`
 }
 
 type VariableVal struct {
