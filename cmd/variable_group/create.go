@@ -13,7 +13,7 @@ import (
 
 var createVariableGroupCmd = &cobra.Command{
 	Use:   "create",
-	Short: "Create a new variable group",
+	Short: "Crea un nuevo Variable Group",
 	Run: func(cmd *cobra.Command, args []string) {
 		groupName, err := cmd.Flags().GetString("name")
 		description, _ := cmd.Flags().GetString("description")

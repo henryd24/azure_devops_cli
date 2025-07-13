@@ -10,15 +10,18 @@ all: build
 
 build: clean
 	@echo "🔧 Compilando binarios para múltiples plataformas..."
-	mkdir -p $(DIST_DIR)
-	GOOS=linux GOARCH=amd64   go build -o $(DIST_DIR)/$(APP_NAME)-linux-amd64-$(VERSION)
-	GOOS=linux GOARCH=arm64   go build -o $(DIST_DIR)/$(APP_NAME)-linux-arm64-$(VERSION)
-	GOOS=darwin GOARCH=amd64  go build -o $(DIST_DIR)/$(APP_NAME)-darwin-amd64-$(VERSION)
-	GOOS=darwin GOARCH=arm64  go build -o $(DIST_DIR)/$(APP_NAME)-darwin-arm64-$(VERSION)
-	GOOS=windows GOARCH=amd64 go build -o $(DIST_DIR)/$(APP_NAME)-windows-amd64-$(VERSION).exe
+	GOOS=linux GOARCH=amd64   go build -o $(DIST_DIR)/$(VERSION)/linux-amd64/$(APP_NAME)
+	GOOS=linux GOARCH=arm64   go build -o $(DIST_DIR)/$(VERSION)/linux-arm64/$(APP_NAME)
+	GOOS=darwin GOARCH=amd64  go build -o $(DIST_DIR)/$(VERSION)/darwin-amd64/$(APP_NAME)
+	GOOS=darwin GOARCH=arm64  go build -o $(DIST_DIR)/$(VERSION)/darwin-arm64/$(APP_NAME)
+	GOOS=windows GOARCH=amd64 go build -o $(DIST_DIR)/$(VERSION)/windows-amd64/$(APP_NAME).exe
 	@echo "✅ Binarios generados en la carpeta $(DIST_DIR)"
 
 clean:
 	@echo "🧹 Limpiando binarios anteriores..."
 	rm -rf $(DIST_DIR)/*
-	mkdir -p $(DIST_DIR)
+	mkdir -p $(DIST_DIR)/$(VERSION)/linux-amd64
+	mkdir -p $(DIST_DIR)/$(VERSION)/linux-arm64
+	mkdir -p $(DIST_DIR)/$(VERSION)/darwin-amd64
+	mkdir -p $(DIST_DIR)/$(VERSION)/darwin-arm64
+	mkdir -p $(DIST_DIR)/$(VERSION)/windows-amd64

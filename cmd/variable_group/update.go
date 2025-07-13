@@ -15,19 +15,19 @@ var updateVariableGroupCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Actualiza un Variable Group por nombre",
 	Run: func(cmd *cobra.Command, args []string) {
-		groupName, err := cmd.Flags().GetString("name")
+		groupNames, err := cmd.Flags().GetStringSlice("name")
 		if err != nil {
-			log.Fatalf("Error al obtener el nombre del grupo: %v", err)
+			log.Fatalf("Error al obtener los nombres del grupo: %v", err)
 		}
+		if len(groupNames) == 0 {
+			log.Fatal("Debes proporcionar al menos un nombre de grupo con --name")
+		}
+
 		description, _ := cmd.Flags().GetString("description")
 
 		newVariables, err := cmd.Flags().GetStringSlice("variables")
 		if err != nil {
 			log.Fatalf("Error al obtener las variables: %v", err)
-		}
-
-		if groupName == "" {
-			log.Fatal("Debes proporcionar el nombre del grupo con --name")
 		}
 
 		client := azdevops.GetClientFromEnv()
@@ -59,30 +59,15 @@ var updateVariableGroupCmd = &cobra.Command{
 				IsSecret: isSecret,
 			}
 		}
-		groups, err := vg.GetVariableGroupByName(client, groupName)
-		if err != nil {
-			log.Fatalf("Error al obtener el Variable Group: %v", err)
-		}
-		if len(groups) > 1 {
-			log.Fatalf("Se esperó un solo Variable Group con nombre '%s', pero se encontraron %d", groupName, len(groups))
-		}
-		if len(groups) == 0 {
-			log.Fatalf("No existe un Variable Group con nombre '%s'. Usa el comando 'create' para crearlo.", groupName)
-		}
 
-		group := groups[0]
-		desc := group.Description
-		if description != "" {
-			desc = description
-		}
-		if _, err := vg.AddVariablesToGroup(client, group, newVariablesMap, desc); err != nil {
+		if _, err := vg.AddVariablesToGroup(client, groupNames, newVariablesMap, description); err != nil {
 			log.Fatalf("Error al agregar variables al grupo: %v", err)
 		}
 	},
 }
 
 func init() {
-	updateVariableGroupCmd.Flags().StringP("name", "n", "", "Nombre del variable group")
+	updateVariableGroupCmd.Flags().StringSliceP("name", "n", nil, "Nombre del variable group")
 	updateVariableGroupCmd.Flags().StringSliceP("variables", "v", nil, "Variables a agregar en formato: clave=valor o secret:clave=valor")
 	updateVariableGroupCmd.Flags().StringP("description", "d", "", "Descripción del variable group (opcional)")
 	cmd.Variables.AddCommand(updateVariableGroupCmd)
