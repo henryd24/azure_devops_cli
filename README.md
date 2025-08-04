@@ -72,17 +72,17 @@ El comando raíz es `azuredevops`. A partir de ahí, puedes usar los subcomandos
   * **Actualizar un Variable Group agregando nuevas variables**:
 
     ```bash
-    azuredevops variables update --name "MiGrupoDeVariables" --variables "clave2=valorNuevo" "secret:otraClave=otroSecreto"
+    azuredevops variables update --name "MiGrupoDeVariables" --variables "clave2=valorNuevo,secret:otraClave=otroSecreto"
     ```
     También podras actualizar varias al tiempo
     ```bash
-    azuredevops variables update --name "MiGrupoDeVariables" --name "MiGrupoDeVariables2" --variables "clave2=valorNuevo" "secret:otraClave=otroSecreto"
+    azuredevops variables update --name "MiGrupoDeVariables" --name "MiGrupoDeVariables2" --variables "clave2=valorNuevo,secret:otraClave=otroSecreto"
     ```
 
   * **Eliminar variables específicas de un grupo**:
 
     ```bash
-    azuredevops variables delete --name "MiGrupoDeVariables" --variables "clave1" "otraClave"
+    azuredevops variables delete --name "MiGrupoDeVariables" --variables "clave1,otraClave"
     ```
 
   * **Eliminar un Variable Group completo**:
@@ -92,6 +92,40 @@ El comando raíz es `azuredevops`. A partir de ahí, puedes usar los subcomandos
     ```
 
       * Usa `--yes` o `-y` para confirmar la eliminación sin que se te pregunte.
+
+---
+
+### Ejemplos con `pipelines` (Nuevo)
+
+  * **Crear un nuevo pipeline**:
+
+    ```bash
+    azuredevops pipelines create --name "MiPipeline" --repo-type "azureReposGit" --repo-name "mi-repo" --branch "main" --yaml-path ".azure-pipelines.yml" --folder "\\" --service-connection "id-conexion"
+    ```
+    * Los parámetros `--name`, `--repo-type`, `--repo-name`, `--branch` y `--yaml-path` son obligatorios.
+    * Puedes especificar la carpeta y la conexión de servicio si lo necesitas.
+
+  * **Obtener un pipeline por nombre**:
+
+    ```bash
+    azuredevops pipelines get --name "MiPipelinePrefix*"
+    azuredevops pipelines get --name "MiPipeline"
+    ```
+
+  * **Actualizar un pipeline existente**:
+
+    ```bash
+    azuredevops pipelines update --id 123 --name "NuevoNombre" --yaml-path ".azure-pipelines.yml" --repo-name "mi-repo-actualizado" --service-connection "nuevo-id-conexion"
+    ```
+    * Puedes actualizar solo los campos que necesites, los demás se mantienen igual.
+
+  * **Eliminar un pipeline**:
+
+    ```bash
+    azuredevops pipelines delete --id 123
+    ```
+
+---
 
 ## Licencia
 
