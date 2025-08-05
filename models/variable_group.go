@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type VariableGroup struct {
 	Id                             int                              `json:"id,omitempty"`
 	Name                           string                           `json:"name"`
@@ -8,6 +10,16 @@ type VariableGroup struct {
 	IsShared                       bool                             `json:"isShared,omitempty"`
 	Variables                      map[string]VariableVal           `json:"variables"`
 	VariableGroupProjectReferences []VariableGroupProjectReferences `json:"variableGroupProjectReferences,omitempty"`
+	CreatedBy                      VariableGroupUser                `json:"createdBy,omitempty"`
+	ModifiedBy                     VariableGroupUser                `json:"modifiedBy,omitempty"`
+	CreatedOn                      time.Time                        `json:"createdOn,omitempty"`
+	ModifiedOn                     time.Time                        `json:"modifiedOn,omitempty"`
+}
+
+type VariableGroupUser struct {
+	Id          string `json:"id"`
+	UniqueName  string `json:"uniqueName"`
+	DisplayName string `json:"displayName"`
 }
 
 type VariableVal struct {
