@@ -41,5 +41,6 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           artifacts: "release_packages/*"
+          bodyFile: "RELEASE_NOTES.md"
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
