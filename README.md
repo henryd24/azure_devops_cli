@@ -47,14 +47,14 @@ El proyecto incluye un `Dockerfile` para crear un entorno de desarrollo con Go.
 
 ## Uso
 
-El comando raíz es `azuredevops`. A partir de ahí, puedes usar los subcomandos `variables` y `pipelines`.
+El comando raíz es `azdevops`. A partir de ahí, puedes usar los subcomandos `variables` y `pipelines`.
 
 ### Ejemplos con `variables`
 
   * **Crear un nuevo Variable Group**:
 
     ```bash
-    azuredevops variables create --name "MiGrupoDeVariables" --description "Un grupo de ejemplo" --variables "clave1=valor1" "secret:claveSecreta=valorSecreto"
+    azdevops variables create --name "MiGrupoDeVariables" --description "Un grupo de ejemplo" --variables "clave1=valor1" "secret:claveSecreta=valorSecreto"
     ```
 
       * Usa el prefijo `secret:` para crear variables secretas.
@@ -62,33 +62,33 @@ El comando raíz es `azuredevops`. A partir de ahí, puedes usar los subcomandos
   * **Obtener un Variable Group**:
 
     ```bash
-    azuredevops variables get --name "MiGrupoDeVariables"
+    azdevops variables get --name "MiGrupoDeVariables"
     ```
     También puedes jugar con expreciones como `MiGrupoDeVariables*` lo que retornara aquellos que contengan dicha estructura, devolviendo no solo aquel que tiene el nombre exacto
     ```bash
-    azuredevops variables get --name "MiGrupoDeVariables*"
+    azdevops variables get --name "MiGrupoDeVariables*"
     ```
 
   * **Actualizar un Variable Group agregando nuevas variables**:
 
     ```bash
-    azuredevops variables update --name "MiGrupoDeVariables" --variables "clave2=valorNuevo,secret:otraClave=otroSecreto"
+    azdevops variables update --name "MiGrupoDeVariables" --variables "clave2=valorNuevo,secret:otraClave=otroSecreto"
     ```
     También podras actualizar varias al tiempo
     ```bash
-    azuredevops variables update --name "MiGrupoDeVariables" --name "MiGrupoDeVariables2" --variables "clave2=valorNuevo,secret:otraClave=otroSecreto"
+    azdevops variables update --name "MiGrupoDeVariables" --name "MiGrupoDeVariables2" --variables "clave2=valorNuevo,secret:otraClave=otroSecreto"
     ```
 
   * **Eliminar variables específicas de un grupo**:
 
     ```bash
-    azuredevops variables delete --name "MiGrupoDeVariables" --variables "clave1,otraClave"
+    azdevops variables delete --name "MiGrupoDeVariables" --variables "clave1,otraClave"
     ```
 
   * **Eliminar un Variable Group completo**:
 
     ```bash
-    azuredevops variables delete --name "MiGrupoDeVariables" --yes
+    azdevops variables delete --name "MiGrupoDeVariables" --yes
     ```
 
       * Usa `--yes` o `-y` para confirmar la eliminación sin que se te pregunte.
@@ -100,7 +100,7 @@ El comando raíz es `azuredevops`. A partir de ahí, puedes usar los subcomandos
   * **Crear un nuevo pipeline**:
 
     ```bash
-    azuredevops pipelines create --name "MiPipeline" --repo-type "azureReposGit" --repo-name "mi-repo" --branch "main" --yaml-path ".azure-pipelines.yml" --folder "\\" --service-connection "id-conexion"
+    azdevops pipelines create --name "MiPipeline" --repo-type "azureReposGit" --repo-name "mi-repo" --branch "main" --yaml-path ".azure-pipelines.yml" --folder "\\" --service-connection "id-conexion"
     ```
     * Los parámetros `--name`, `--repo-type`, `--repo-name`, `--branch` y `--yaml-path` son obligatorios.
     * Puedes especificar la carpeta y la conexión de servicio si lo necesitas.
@@ -108,21 +108,21 @@ El comando raíz es `azuredevops`. A partir de ahí, puedes usar los subcomandos
   * **Obtener un pipeline por nombre**:
 
     ```bash
-    azuredevops pipelines get --name "MiPipelinePrefix*"
-    azuredevops pipelines get --name "MiPipeline"
+    azdevops pipelines get --name "MiPipelinePrefix*"
+    azdevops pipelines get --name "MiPipeline"
     ```
 
   * **Actualizar un pipeline existente**:
 
     ```bash
-    azuredevops pipelines update --id 123 --name "NuevoNombre" --yaml-path ".azure-pipelines.yml" --repo-name "mi-repo-actualizado" --service-connection "nuevo-id-conexion"
+    azdevops pipelines update --id 123 --name "NuevoNombre" --yaml-path ".azure-pipelines.yml" --repo-name "mi-repo-actualizado" --service-connection "nuevo-id-conexion"
     ```
     * Puedes actualizar solo los campos que necesites, los demás se mantienen igual.
 
   * **Eliminar un pipeline**:
 
     ```bash
-    azuredevops pipelines delete --id 123
+    azdevops pipelines delete --id 123
     ```
 
 ---
