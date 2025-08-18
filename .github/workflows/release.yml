@@ -33,11 +33,11 @@ jobs:
           
           # Comprime cada conjunto de binarios en un archivo tar.gz o .zip
           cd dist/${{ github.ref_name }}
-          tar -czf ../../release_packages/azdevops_${{ github.ref_name }}_linux-amd64.tar.gz -C linux-amd64 .
-          tar -czf ../../release_packages/azdevops_${{ github.ref_name }}_linux-arm64.tar.gz -C linux-arm64 .
-          tar -czf ../../release_packages/azdevops_${{ github.ref_name }}_darwin-amd64.tar.gz -C darwin-amd64 .
-          tar -czf ../../release_packages/azdevops_${{ github.ref_name }}_darwin-arm64.tar.gz -C darwin-arm64 .
-          zip -r ../../release_packages/azdevops_${{ github.ref_name }}_windows-amd64.zip windows-amd64
+          tar -czf ../../release_packages/azdevops_linux_amd64.tar.gz -C linux-amd64 .
+          tar -czf ../../release_packages/azdevops_linux_arm64.tar.gz -C linux-arm64 .
+          tar -czf ../../release_packages/azdevops_darwin_amd64.tar.gz -C darwin-amd64 .
+          tar -czf ../../release_packages/azdevops_darwin_arm64.tar.gz -C darwin-arm64 .
+          zip -r ../../release_packages/azdevops_windows_amd64.zip windows-amd64
 
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
