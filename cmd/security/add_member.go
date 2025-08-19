@@ -13,32 +13,39 @@ import (
 
 var addMemberCmd = &cobra.Command{
 	Use:   "add-member",
-	Short: "Agrega un usuario a un grupo de seguridad.",
+	Short: "Agrega uno o más usuarios a uno o más grupos de seguridad.",
 	Run: func(cmd *cobra.Command, args []string) {
-		groupName, _ := cmd.Flags().GetString("group")
-		user, _ := cmd.Flags().GetString("user")
+		groupNames, _ := cmd.Flags().GetStringSlice("group")
+		users, _ := cmd.Flags().GetStringSlice("user")
 
-		if groupName == "" || user == "" {
-			log.Fatal("Los flags --group y --user son obligatorios.")
+		if len(groupNames) == 0 || len(users) == 0 {
+			log.Fatal("Debes proporcionar al menos un valor para --group y --user.")
 		}
 
 		client := azdevops.GetClientFromEnv()
 
-		group, err := security.SearchGroupByName(client, groupName)
-		if err != nil {
-			log.Fatalf("Error al buscar el grupo: %v", err)
-		}
+		for _, groupName := range groupNames {
+			fmt.Printf("Procesando grupo: '%s'\n", groupName)
 
-		if _, err := security.AddUserToGroup(client, group.Descriptor, user); err != nil {
-			log.Fatalf("Error al agregar el usuario al grupo: %v", err)
-		}
+			group, err := security.GetGroupByPrincipalName(client, groupName)
+			if err != nil {
+				log.Printf("  └─ ❌ Error al buscar el grupo '%s': %v\n", groupName, err)
+				continue
+			}
 
-		fmt.Printf("✔ Usuario '%s' agregado con éxito al grupo '%s'.\n", user, group.DisplayName)
+			for _, user := range users {
+				if _, err := security.AddUserToGroup(client, group.SubjectDescriptor, user); err != nil {
+					log.Printf("  └─ ❌ Error al agregar a '%s': %v\n", user, err)
+				} else {
+					fmt.Printf("  └─ ✔️ Usuario '%s' agregado con éxito.\n", user)
+				}
+			}
+		}
 	},
 }
 
 func init() {
-	addMemberCmd.Flags().StringP("group", "g", "", "Nombre del grupo de seguridad (obligatorio)")
-	addMemberCmd.Flags().StringP("user", "u", "", "Email o UPN del usuario a agregar (obligatorio)")
+	addMemberCmd.Flags().StringSliceP("group", "g", nil, "Nombre del grupo (se puede repetir para múltiples grupos)")
+	addMemberCmd.Flags().StringSliceP("user", "u", nil, "Email o UPN del usuario (se puede repetir para múltiples usuarios)")
 	cmd.Security.AddCommand(addMemberCmd)
 }

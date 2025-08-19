@@ -2,9 +2,7 @@ package security
 
 import (
 	"azuredevops/azdevops"
-	"azuredevops/azdevops/organization"
 	"azuredevops/models"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -49,27 +47,10 @@ func ListGroups(client *azdevops.Client) ([]models.GraphGroup, error) {
 	return allGroups, nil
 }
 
-func SearchGroupByName(client *azdevops.Client, groupName string) (*models.GraphGroup, error) {
-	scopeDescriptor, err := organization.GetProjectDescriptor(client)
-	if err != nil {
-		return nil, fmt.Errorf("no se pudo obtener la información del proyecto: %w", err)
-	}
-
-	payloadData := models.SubjectQueryPayload{
-		Query:           groupName,
-		ScopeDescriptor: scopeDescriptor,
-		SubjectKind:     []string{"Group"},
-	}
-
-	payload, err := json.Marshal(payloadData)
-	if err != nil {
-		return nil, fmt.Errorf("error al serializar el payload: %w", err)
-	}
-
-	url := fmt.Sprintf("https://vssps.dev.azure.com/%s/_apis/graph/subjectquery?api-version=7.1-preview.1", client.Org)
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(payload))
-	req.Header.Set("Authorization", client.AuthHeader())
-	req.Header.Set("Content-Type", "application/json")
+func GetGroupByPrincipalName(client *azdevops.Client, principalName string) (*models.Identity, error) {
+	url := fmt.Sprintf("https://vssps.dev.azure.com/%s/_apis/identities?searchFilter=General&filterValue=[%s]\\%s&api-version=7.1-preview.1", client.Org, client.Project, principalName)
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Add("Authorization", client.AuthHeader())
 
 	resp, err := client.HTTP.Do(req)
 	if err != nil {
@@ -77,17 +58,16 @@ func SearchGroupByName(client *azdevops.Client, groupName string) (*models.Graph
 	}
 	defer resp.Body.Close()
 
-	var result models.SubjectQueryResponse
+	var result struct {
+		Value []models.Identity `json:"value"`
+	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("error al decodificar la respuesta de la búsqueda: %w", err)
+		return nil, err
 	}
-
 	if len(result.Value) == 0 {
-		return nil, fmt.Errorf("no se encontró ningún grupo con el nombre '%s'", groupName)
+		return nil, fmt.Errorf("no se encontró al grupo '%s'", principalName)
 	}
-	if len(result.Value) > 1 {
-		return nil, fmt.Errorf("se encontró más de un grupo con el nombre '%s', por favor sé más específico", groupName)
-	}
+	fmt.Printf("✔ Grupo encontrado: %s (ID: %s)\n", result.Value[0].DisplayName, result.Value[0].ID)
 
 	return &result.Value[0], nil
 }

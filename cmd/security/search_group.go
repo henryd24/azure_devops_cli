@@ -24,7 +24,7 @@ var searchGroupCmd = &cobra.Command{
 
 		client := azdevops.GetClientFromEnv()
 
-		group, err := security.SearchGroupByName(client, groupName)
+		group, err := security.GetGroupByPrincipalName(client, groupName)
 		if err != nil {
 			log.Fatalf("Error al buscar el grupo: %v", err)
 		}
