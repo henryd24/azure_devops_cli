@@ -9,7 +9,7 @@ import (
 )
 
 func GetBuildDefinitionByName(client *azdevops.Client, name string) ([]models.BuildDefinition, error) {
-	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/build/definitions?name=%s&api-version=6.0", client.Org, client.Project, name)
+	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/build/definitions?name=%s&api-version=7.1", client.Org, client.Project, name)
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Add("Authorization", client.AuthHeader())
 
@@ -36,7 +36,7 @@ func GetBuildDefinitionByName(client *azdevops.Client, name string) ([]models.Bu
 }
 
 func GetBuildDefinitionByID(client *azdevops.Client, id int) (*models.BuildDefinition, error) {
-	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/build/definitions/%d?api-version=6.0", client.Org, client.Project, id)
+	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/build/definitions/%d?api-version=7.1", client.Org, client.Project, id)
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Add("Authorization", client.AuthHeader())
 

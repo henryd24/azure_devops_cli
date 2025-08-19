@@ -180,3 +180,27 @@ type PipelineTriggerSettings struct {
 	RequireCommentsForNonTeamMemberAndNonContributors *bool `json:"requireCommentsForNonTeamMemberAndNonContributors,omitempty"`
 	RequireCommentsForNonTeamMembersOnly              *bool `json:"requireCommentsForNonTeamMembersOnly,omitempty"`
 }
+
+type BuildRunPayload struct {
+	Definition struct {
+		ID int `json:"id"`
+	} `json:"definition"`
+	TemplateParameters map[string]string        `json:"templateParameters,omitempty"`
+	Variables          map[string]BuildVariable `json:"variables,omitempty"`
+}
+
+type Build struct {
+	ID     int    `json:"id"`
+	Status string `json:"status"`
+	Result string `json:"result"`
+	Links  struct {
+		Web struct {
+			Href string `json:"href"`
+		} `json:"web"`
+	} `json:"_links"`
+}
+
+type BuildVariable struct {
+	Value    string `json:"value"`
+	IsSecret bool   `json:"isSecret,omitempty"`
+}

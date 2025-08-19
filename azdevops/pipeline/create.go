@@ -39,7 +39,7 @@ func CreatePipeline(client *azdevops.Client, name, repoType, repoName, branch, y
 		return nil, fmt.Errorf("error al serializar el payload: %w", err)
 	}
 
-	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/pipelines?api-version=6.0-preview.1", client.Org, client.Project)
+	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/pipelines?api-version=7.1-preview.1", client.Org, client.Project)
 	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(payload))
 	req.Header.Set("Authorization", client.AuthHeader())
 	req.Header.Set("Content-Type", "application/json")

@@ -25,7 +25,7 @@ func DeletePipeline(client *azdevops.Client, pipelineID int, autoconfirmation bo
 			}
 		}
 
-		url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/build/retention/leases?ids=%s&api-version=6.0-preview.1", client.Org, client.Project, leaseIds)
+		url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/build/retention/leases?ids=%s&api-version=7.1-preview.1", client.Org, client.Project, leaseIds)
 		req, _ := http.NewRequest("DELETE", url, nil)
 		req.Header.Add("Authorization", client.AuthHeader())
 		resp, err := client.HTTP.Do(req)
@@ -56,7 +56,7 @@ func DeletePipeline(client *azdevops.Client, pipelineID int, autoconfirmation bo
 }
 
 func getRetentionLeases(client *azdevops.Client, pipelineID int) ([]models.RetentionLease, error) {
-	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/build/retention/leases?definitionId=%d&api-version=6.0-preview.1", client.Org, client.Project, pipelineID)
+	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/build/retention/leases?definitionId=%d&api-version=7.1-preview.1", client.Org, client.Project, pipelineID)
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Add("Authorization", client.AuthHeader())
 
