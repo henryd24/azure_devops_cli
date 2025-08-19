@@ -12,9 +12,7 @@ import (
 	"strings"
 )
 
-// SetPermissionsOptimized asigna un rol a un Variable Group para un conjunto de identidades ya resueltas.
 func SetPermissionsOptimized(client *azdevops.Client, variableGroup *models.VariableGroup, identityIDs []string, role string) error {
-	// 1. Validar y normalizar el rol
 	validRoles := map[string]bool{"reader": true, "user": true, "administrator": true}
 	normalizedRole := strings.ToLower(role)
 	if !validRoles[normalizedRole] {
@@ -22,7 +20,6 @@ func SetPermissionsOptimized(client *azdevops.Client, variableGroup *models.Vari
 	}
 	role = strings.Title(normalizedRole)
 
-	// 2. Construir el payload a partir de los IDs pre-buscados
 	assignments := make([]models.SecurityRoleAssignment, len(identityIDs))
 	for i, id := range identityIDs {
 		assignments[i] = models.SecurityRoleAssignment{
@@ -35,19 +32,16 @@ func SetPermissionsOptimized(client *azdevops.Client, variableGroup *models.Vari
 		return fmt.Errorf("no se proporcionaron identidades para asignar permisos")
 	}
 
-	// 3. Obtener el ID del proyecto
 	project, err := organization.GetOrganizationInfo(client)
 	if err != nil {
 		return fmt.Errorf("no se pudo obtener la información del proyecto: %w", err)
 	}
 
-	// 4. Preparar y enviar la solicitud a la API
 	payload, err := json.Marshal(assignments)
 	if err != nil {
 		return fmt.Errorf("error al serializar el payload: %w", err)
 	}
 
-	// URL corregida con "_" en lugar de "$" como separador del recurso
 	url := fmt.Sprintf("https://dev.azure.com/%s/_apis/securityroles/scopes/distributedtask.variablegroup/roleassignments/resources/%s$%d?api-version=7.1-preview.1",
 		client.Org, project.ID, variableGroup.Id)
 

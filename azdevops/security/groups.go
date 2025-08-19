@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 )
 
 func ListGroups(client *azdevops.Client) ([]models.GraphGroup, error) {
@@ -48,7 +49,8 @@ func ListGroups(client *azdevops.Client) ([]models.GraphGroup, error) {
 }
 
 func GetGroupByPrincipalName(client *azdevops.Client, principalName string) (*models.Identity, error) {
-	url := fmt.Sprintf("https://vssps.dev.azure.com/%s/_apis/identities?searchFilter=General&filterValue=[%s]\\%s&api-version=7.1-preview.1", client.Org, client.Project, principalName)
+	encodedFilterValue := url.QueryEscape(fmt.Sprintf("[%s]\\%s", client.Project, principalName))
+	url := fmt.Sprintf("https://vssps.dev.azure.com/%s/_apis/identities?searchFilter=General&filterValue=%s&api-version=7.1-preview.1", client.Org, encodedFilterValue)
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Add("Authorization", client.AuthHeader())
 

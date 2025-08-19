@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 )
 
 func GetUserByPrincipalName(client *azdevops.Client, principalName string) (*models.Identity, error) {
-	url := fmt.Sprintf("https://vssps.dev.azure.com/%s/_apis/identities?searchFilter=General&filterValue=%s&api-version=7.1-preview.1", client.Org, principalName)
+	encodedFilterValue := url.QueryEscape(principalName)
+	url := fmt.Sprintf("https://vssps.dev.azure.com/%s/_apis/identities?searchFilter=General&filterValue=%s&api-version=7.1-preview.1", client.Org, encodedFilterValue)
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Add("Authorization", client.AuthHeader())
 
@@ -55,6 +57,28 @@ func AddUserToGroup(client *azdevops.Client, groupDescriptor, userPrincipalName 
 	if resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)
 		return false, fmt.Errorf("error al agregar el miembro: %s", string(body))
+	}
+
+	return true, nil
+}
+
+func AddUserToGroupOptimized(client *azdevops.Client, groupDescriptor, userDescriptor string) (bool, error) {
+	url := fmt.Sprintf("https://vssps.dev.azure.com/%s/_apis/graph/memberships/%s/%s?api-version=7.1-preview.1",
+		client.Org, userDescriptor, groupDescriptor)
+
+	req, _ := http.NewRequest("PUT", url, nil)
+	req.Header.Set("Authorization", client.AuthHeader())
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.HTTP.Do(req)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return false, fmt.Errorf("error al agregar el miembro (código %d): %s", resp.StatusCode, string(body))
 	}
 
 	return true, nil

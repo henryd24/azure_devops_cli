@@ -93,9 +93,17 @@ El comando raíz es `azdevops`. A partir de ahí, puedes usar los subcomandos `v
 
       * Usa `--yes` o `-y` para confirmar la eliminación sin que se te pregunte.
 
+  * **Agregar permisos a un Variable Group**:
+
+    ```bash
+    azdevops variables set-permissions --variable-groups "MiGrupoDeVariables" --users "usuario1@ejemplo.com" --group "GroupName" --role "Reader"
+    ```
+
+      * El grupo de seguridad debe existir previamente y este debe ser sin el prefijo `[]\`.
+
 ---
 
-### Ejemplos con `pipelines` (Nuevo)
+### Ejemplos con `pipelines`
 
   * **Crear un nuevo pipeline**:
 
@@ -123,6 +131,33 @@ El comando raíz es `azdevops`. A partir de ahí, puedes usar los subcomandos `v
 
     ```bash
     azdevops pipelines delete --id 123
+    ```
+
+  * **Iniciar un pipeline y esperar a que finalice:**
+    ```bash
+    azdevops pipelines run --id 123 --wait
+    # Iniciar un pipeline pasando parámetros y variables (incluyendo secretos):
+    azdevops pipelines run --id 123 --param "imageTag=1.2.3" --var "deployEnv=staging" --var "secret:apiKey=un_valor_muy_secreto_aqui"
+    ```
+
+### Ejemplos con `security`
+
+  * **Listar grupos de seguridad**:
+
+    ```bash
+    azdevops security list-groups
+    ```
+
+  * **Buscar un grupo de seguridad por nombre**:
+
+    ```bash
+    azdevops security search-group --name "MiGrupo"
+    ```
+
+  * **Agregar un miembro a un grupo de seguridad**:
+
+    ```bash
+    azdevops security add-member --target-group "MiGrupoDestino" --target-group "MiGrupoDestino2" --user "usuario1@ejemplo.com" --group "MiGrupo"
     ```
 
 ---
