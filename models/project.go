@@ -29,3 +29,7 @@ type Team struct {
 	Name string `json:"name"`
 	URL  string `json:"url"`
 }
+
+type GraphDescriptor struct {
+	ID string `json:"value"`
+}

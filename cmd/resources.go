@@ -16,7 +16,13 @@ var Pipelines = &cobra.Command{
 	Long:  "Comandos para trabajar con pipelines en Azure DevOps, incluyendo la creación, actualización y eliminación de pipelines.",
 }
 
+var Security = &cobra.Command{
+	Use:   "security",
+	Short: "Comandos para gestionar grupos y permisos de seguridad",
+}
+
 func init() {
 	RootCmd.AddCommand(Variables)
 	RootCmd.AddCommand(Pipelines)
+	RootCmd.AddCommand(Security)
 }
