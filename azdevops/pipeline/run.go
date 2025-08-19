@@ -14,7 +14,6 @@ import (
 
 func RunPipeline(client *azdevops.Client, pipelineID int, wait bool, params map[string]string, vars map[string]models.BuildVariable) (*models.Build, error) {
 	payloadData := models.BuildRunPayload{}
-	payloadData.Definition.ID = pipelineID
 
 	if len(params) > 0 {
 		payloadData.TemplateParameters = params
@@ -28,7 +27,7 @@ func RunPipeline(client *azdevops.Client, pipelineID int, wait bool, params map[
 		return nil, fmt.Errorf("error al serializar el payload: %w", err)
 	}
 
-	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/build/builds?api-version=7.1", client.Org, client.Project)
+	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/pipelines/%d/runs?api-version=7.1", client.Org, client.Project, pipelineID)
 	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(payload))
 	req.Header.Set("Authorization", client.AuthHeader())
 	req.Header.Set("Content-Type", "application/json")

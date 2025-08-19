@@ -184,7 +184,7 @@ type PipelineTriggerSettings struct {
 type BuildRunPayload struct {
 	Definition struct {
 		ID int `json:"id"`
-	} `json:"definition"`
+	} `json:"omitempty"`
 	TemplateParameters map[string]string        `json:"templateParameters,omitempty"`
 	Variables          map[string]BuildVariable `json:"variables,omitempty"`
 }
