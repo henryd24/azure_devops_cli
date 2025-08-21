@@ -23,5 +23,29 @@ func GetOrganizationInfo(client *azdevops.Client) (*models.Project, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err
 	}
+
 	return &result, nil
+}
+
+func GetProjectDescriptor(client *azdevops.Client) (string, error) {
+	project, err := GetOrganizationInfo(client)
+	if err != nil {
+		return "", err
+	}
+	url := fmt.Sprintf("https://vssps.dev.azure.com/%s/_apis/graph/descriptors/%s", client.Org, project.ID)
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Add("Authorization", client.AuthHeader())
+
+	resp, err := client.HTTP.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var result models.GraphDescriptor
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("error al decodificar la respuesta del descriptor: %w", err)
+	}
+
+	return result.ID, nil
 }

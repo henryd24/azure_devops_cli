@@ -38,7 +38,7 @@ func UpdateBuildDefinition(client *azdevops.Client, id int, newName, yamlPath, r
 		return nil, fmt.Errorf("error al serializar el payload de actualización: %w", err)
 	}
 
-	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/build/definitions/%d?api-version=6.0", client.Org, client.Project, id)
+	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/build/definitions/%d?api-version=7.1", client.Org, client.Project, id)
 	req, _ := http.NewRequest("PUT", url, bytes.NewBuffer(payload))
 	req.Header.Set("Authorization", client.AuthHeader())
 	req.Header.Set("Content-Type", "application/json")

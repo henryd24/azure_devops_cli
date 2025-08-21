@@ -1,33 +1,25 @@
-# Release v0.0.1-beta
+# Release v0.0.2-beta
 
-Este es el primer lanzamiento beta de una herramienta CLI para interactuar con Azure DevOps.
+Esta versión expande significativamente las capacidades de la CLI, introduciendo la ejecución de pipelines y una suite completa para la gestión de permisos y grupos de seguridad. Se ha puesto un foco especial en la optimización de las llamadas a la API para un rendimiento eficiente.
 
-El objetivo de esta versión inicial es proporcionar funcionalidades para la gestión de **Grupos de Variables** y **Pipelines como Código** desde la línea de comandos.
+## ✨ Funcionalidades Nuevas
 
-## ✨ Funcionalidades
+### Ejecución de Pipelines (`pipelines run`)
 
-### Gestión de Grupos de Variables (`variables`)
+Se ha añadido un nuevo comando `run` al subcomando `pipelines` que permite:
+- **Iniciar un pipeline** por su ID de definición.
+- **Esperar su finalización** con el flag `--wait` para flujos de trabajo síncronos.
+- **Pasar parámetros** de plantilla YAML usando el flag `--param`.
+- **Inyectar variables** en tiempo de ejecución con el flag `--var`, con soporte para variables secretas usando el prefijo `secret:`.
 
-- **`create`**: Permite la creación de nuevos *Variable Groups*, incluyendo variables normales y secretas.
-- **`get`**: Recupera la información de un *Variable Group* por su nombre en formato JSON.
-- **`update`**: Agrega o modifica variables en grupos de variables existentes.
-- **`delete`**: Elimina *Variable Groups* completos o variables específicas dentro de un grupo. Incluye un sistema de confirmación para operaciones destructivas.
+### Gestión de Seguridad y Permisos (`security`)
 
-### Gestión de Pipelines (`pipelines`)
+Se introduce un nuevo conjunto de comandos de alto nivel para gestionar la seguridad:
+- **`security list-groups`**: Lista todos los grupos de seguridad. Incluye un flag `--search` para filtrar los resultados y maneja la paginación automáticamente para obtener la lista completa.
+- **`security search-group`**: Busca un grupo específico por nombre de forma eficiente, ideal para scripts.
+- **`security add-member`**: Agrega uno o más usuarios y/o grupos a uno o más grupos de seguridad en una sola operación.
 
-- **`create`**: Crea un pipeline en Azure DevOps a partir de un archivo YAML ubicado en un repositorio de **Azure Repos** o **GitHub**.
-- **`get`**: Busca y muestra los detalles de un pipeline a partir de su nombre.
-- **`update`**: Modifica un pipeline existente, permitiendo cambiar su nombre, la ruta al archivo YAML, el repositorio de origen o la conexión de servicio (Service Connection).
-- **`delete`**: Elimina un pipeline por su ID. Esta función maneja la eliminación previa de las retenciones (retention leases) para asegurar que el borrado se complete.
+### Permisos para Variable Groups (`variables set-permissions`)
 
-## 🚀 Cómo Empezar
-
-1.  Descargar el binario correspondiente a su sistema operativo desde los **Assets** de este release.
-2.  Configurar las siguientes variables de entorno para la autenticación:
-    ```bash
-    export AZURE_ORG="su-organizacion"
-    export AZURE_PROJECT="su-proyecto"
-    export AZURE_PAT="su-personal-access-token"
-    ```
-3.  Ejecutar `azdevops --help` para ver la lista de comandos disponibles.
-
+Se añade un comando para gestionar los roles en los *Variable Groups*:
+- **`variables set-permissions`**: Asigna los roles de **Reader**, **User**, o **Administrator** a múltiples usuarios y/o grupos en múltiples *Variable Groups* de forma masiva.
