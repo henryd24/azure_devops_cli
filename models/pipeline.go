@@ -28,6 +28,8 @@ type Configuration struct {
 }
 
 type PipelineRepository struct {
+	ID         string      `json:"id,omitempty"`
+	Name       string      `json:"name,omitempty"`
 	FullName   string      `json:"FullName"`
 	Type       string      `json:"type"` // "azureReposGit" o "gitHub"
 	Connection *Properties `json:"connection,omitempty"`
@@ -42,4 +44,21 @@ type RetentionLease struct {
 	OwnerID    string    `json:"ownerId"`
 	CreatedOn  time.Time `json:"createdOn"`
 	PipelineID int       `json:"runId"`
+}
+
+type GitRepository struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	DefaultBranch string `json:"defaultBranch"`
+	WebURL        string `json:"webUrl"`
+	RemoteURL     string `json:"remoteUrl"`
+}
+
+type ServiceEndpoint struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	URL         string `json:"url"`
+	IsReady     bool   `json:"isReady"`
+	Description string `json:"description"`
 }

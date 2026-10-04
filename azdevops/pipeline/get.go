@@ -3,52 +3,54 @@ package pipeline
 import (
 	"azuredevops/azdevops"
 	"azuredevops/models"
-	"encoding/json"
 	"fmt"
-	"net/http"
+	"net/url"
+	"sort"
 )
 
-func GetBuildDefinitionByName(client *azdevops.Client, name string) ([]models.BuildDefinition, error) {
-	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/build/definitions?name=%s&api-version=7.1", client.Org, client.Project, name)
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Add("Authorization", client.AuthHeader())
-
-	resp, err := client.HTTP.Do(req)
-	if err != nil {
-		return nil, err
+// ListDefinitions lista los pipelines del proyecto. name admite comodines y folder
+// filtra por carpeta (p. ej. "\\infra"). Ambos son opcionales.
+func ListDefinitions(client *azdevops.Client, name, folder string) ([]models.BuildDefinition, error) {
+	q := url.Values{"api-version": {"7.1"}, "includeLatestBuilds": {"true"}}
+	if name != "" {
+		q.Set("name", name)
 	}
-	defer resp.Body.Close()
-
+	if folder != "" {
+		q.Set("path", folder)
+	}
 	var result struct {
 		Value []models.BuildDefinition `json:"value"`
-		Count int                      `json:"count"`
 	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("error al decodificar la lista de definiciones: %w", err)
+	if err := client.Do("GET", client.ProjectURL("build/definitions", q), nil, &result); err != nil {
+		return nil, fmt.Errorf("error al listar los pipelines: %w", err)
 	}
-
-	if result.Count > 0 {
-		return result.Value, nil
-	}
-
-	return nil, nil
+	sort.Slice(result.Value, func(i, j int) bool {
+		return deref(result.Value[i].Path)+deref(result.Value[i].Name) < deref(result.Value[j].Path)+deref(result.Value[j].Name)
+	})
+	return result.Value, nil
 }
 
-func GetBuildDefinitionByID(client *azdevops.Client, id int) (*models.BuildDefinition, error) {
-	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/build/definitions/%d?api-version=7.1", client.Org, client.Project, id)
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Add("Authorization", client.AuthHeader())
-
-	resp, err := client.HTTP.Do(req)
-	if err != nil {
-		return nil, err
+// GetBuildDefinitionByName busca pipelines por nombre (admite comodines).
+func GetBuildDefinitionByName(client *azdevops.Client, name string) ([]models.BuildDefinition, error) {
+	if name == "" {
+		return nil, fmt.Errorf("el nombre del pipeline no puede estar vacío")
 	}
-	defer resp.Body.Close()
+	return ListDefinitions(client, name, "")
+}
 
+// GetBuildDefinitionByID obtiene la definición completa de un pipeline.
+func GetBuildDefinitionByID(client *azdevops.Client, id int) (*models.BuildDefinition, error) {
 	var definition models.BuildDefinition
-	if err := json.NewDecoder(resp.Body).Decode(&definition); err != nil {
-		return nil, fmt.Errorf("error al decodificar la definición: %w", err)
+	u := client.ProjectURL(fmt.Sprintf("build/definitions/%d", id), url.Values{"api-version": {"7.1"}})
+	if err := client.Do("GET", u, nil, &definition); err != nil {
+		return nil, fmt.Errorf("error al obtener el pipeline %d: %w", id, err)
 	}
 	return &definition, nil
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

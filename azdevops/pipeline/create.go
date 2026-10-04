@@ -2,66 +2,59 @@ package pipeline
 
 import (
 	"azuredevops/azdevops"
+	"azuredevops/azdevops/git"
 	"azuredevops/models"
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
+	"net/url"
 )
 
-func CreatePipeline(client *azdevops.Client, name, repoType, repoName, branch, yamlPath, folder, serviceConnectionID string) (*models.Pipeline, error) {
-	repo := models.PipelineRepository{
-		FullName: repoName,
-		Type:     repoType,
-	}
+type CreateOptions struct {
+	Name                string
+	RepoType            string // "azureReposGit" o "gitHub"
+	RepoName            string // para GitHub: "org/repo"
+	Branch              string // rama por defecto (opcional)
+	YAMLPath            string
+	Folder              string
+	ServiceConnectionID string
+}
 
-	if serviceConnectionID != "" {
-		repo.Connection = &models.Properties{
-			ID: serviceConnectionID,
+// CreatePipeline crea un pipeline YAML. Si se indica Branch, se fija como rama por defecto.
+func CreatePipeline(client *azdevops.Client, opts CreateOptions) (*models.Pipeline, error) {
+	repo := models.PipelineRepository{
+		FullName: opts.RepoName,
+		Type:     opts.RepoType,
+	}
+	if opts.RepoType == "azureReposGit" {
+		// La API espera el ID del repositorio para Azure Repos.
+		if r, err := git.GetRepository(client, opts.RepoName); err == nil {
+			repo.ID = r.ID
+			repo.Name = r.Name
 		}
 	}
-
-	config := models.Configuration{
-		Type:       "yaml",
-		Path:       yamlPath,
-		Repository: repo,
+	if opts.ServiceConnectionID != "" {
+		repo.Connection = &models.Properties{ID: opts.ServiceConnectionID}
 	}
 
-	pipeline := models.PipelineCreate{
-		Name:          name,
-		Folder:        folder,
-		Configuration: config,
+	body := models.PipelineCreate{
+		Name:   opts.Name,
+		Folder: opts.Folder,
+		Configuration: models.Configuration{
+			Type:       "yaml",
+			Path:       opts.YAMLPath,
+			Repository: repo,
+		},
 	}
 
-	payload, err := json.Marshal(pipeline)
-	if err != nil {
-		return nil, fmt.Errorf("error al serializar el payload: %w", err)
+	var created models.Pipeline
+	u := client.ProjectURL("pipelines", url.Values{"api-version": {"7.1-preview.1"}})
+	if err := client.Do("POST", u, body, &created); err != nil {
+		return nil, fmt.Errorf("error al crear el pipeline: %w", err)
 	}
 
-	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/pipelines?api-version=7.1-preview.1", client.Org, client.Project)
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(payload))
-	req.Header.Set("Authorization", client.AuthHeader())
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.HTTP.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("la solicitud falló: %w", err)
+	if opts.Branch != "" {
+		if _, err := UpdateBuildDefinition(client, created.ID, UpdateOptions{Branch: opts.Branch}); err != nil {
+			return &created, fmt.Errorf("pipeline creado (ID %d) pero no se pudo fijar la rama por defecto: %w", created.ID, err)
+		}
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("error al crear el pipeline: %s", string(body))
-	}
-
-	var newPipeline models.Pipeline
-	if err := json.NewDecoder(resp.Body).Decode(&newPipeline); err != nil {
-		return nil, fmt.Errorf("error al decodificar la respuesta: %w", err)
-	}
-
-	fmt.Printf("✔ Pipeline '%s' creado con éxito (ID: %d)\n", newPipeline.Name, newPipeline.ID)
-	fmt.Printf("🔗 %s\n", newPipeline.Links.Web.Href)
-
-	return &newPipeline, nil
+	return &created, nil
 }

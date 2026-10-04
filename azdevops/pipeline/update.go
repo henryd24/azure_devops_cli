@@ -3,67 +3,66 @@ package pipeline
 import (
 	"azuredevops/azdevops"
 	"azuredevops/models"
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
+	"net/url"
+	"strings"
 )
 
-func UpdateBuildDefinition(client *azdevops.Client, id int, newName, yamlPath, repoName, serviceConnectionID string) (*models.BuildDefinition, error) {
-	currentDef, err := GetBuildDefinitionByID(client, id)
+type UpdateOptions struct {
+	NewName             string
+	YAMLPath            string
+	RepoName            string
+	Branch              string
+	ServiceConnectionID string
+}
+
+func (o UpdateOptions) IsEmpty() bool {
+	return o == UpdateOptions{}
+}
+
+// UpdateBuildDefinition actualiza solo los campos indicados de un pipeline.
+func UpdateBuildDefinition(client *azdevops.Client, id int, opts UpdateOptions) (*models.BuildDefinition, error) {
+	def, err := GetBuildDefinitionByID(client, id)
 	if err != nil {
-		return nil, fmt.Errorf("no se pudo obtener la definición actual para actualizar: %w", err)
+		return nil, err
 	}
 
-	if newName != "" {
-		currentDef.Name = &newName
+	if opts.NewName != "" {
+		def.Name = &opts.NewName
 	}
-	if yamlPath != "" {
-		currentDef.Process.YAMLFilename = &yamlPath
-	}
-	if repoName != "" {
-		currentDef.Repository.Name = &repoName
-		currentDef.Repository.ID = &repoName // Para GitHub, el ID y el Nombre son "org/repo"
-	}
-	if serviceConnectionID != "" {
-		if currentDef.Repository.Properties == nil {
-			currentDef.Repository.Properties = &models.RepositoryProperties{}
+	if opts.YAMLPath != "" {
+		if def.Process == nil {
+			def.Process = &models.Process{}
 		}
-		currentDef.Repository.Properties.ConnectedServiceID = &serviceConnectionID
+		def.Process.YAMLFilename = &opts.YAMLPath
+	}
+	if opts.RepoName != "" || opts.Branch != "" || opts.ServiceConnectionID != "" {
+		if def.Repository == nil {
+			def.Repository = &models.BuildDefinitionRepository{}
+		}
+	}
+	if opts.RepoName != "" {
+		def.Repository.Name = &opts.RepoName
+		def.Repository.ID = &opts.RepoName // Para GitHub, el ID y el Nombre son "org/repo"
+	}
+	if opts.Branch != "" {
+		branch := opts.Branch
+		if !strings.HasPrefix(branch, "refs/") {
+			branch = "refs/heads/" + branch
+		}
+		def.Repository.DefaultBranch = &branch
+	}
+	if opts.ServiceConnectionID != "" {
+		if def.Repository.Properties == nil {
+			def.Repository.Properties = &models.RepositoryProperties{}
+		}
+		def.Repository.Properties.ConnectedServiceID = &opts.ServiceConnectionID
 	}
 
-	payload, err := json.Marshal(currentDef)
-	if err != nil {
-		return nil, fmt.Errorf("error al serializar el payload de actualización: %w", err)
+	var updated models.BuildDefinition
+	u := client.ProjectURL(fmt.Sprintf("build/definitions/%d", id), url.Values{"api-version": {"7.1"}})
+	if err := client.Do("PUT", u, def, &updated); err != nil {
+		return nil, fmt.Errorf("error al actualizar el pipeline %d: %w", id, err)
 	}
-
-	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/build/definitions/%d?api-version=7.1", client.Org, client.Project, id)
-	req, _ := http.NewRequest("PUT", url, bytes.NewBuffer(payload))
-	req.Header.Set("Authorization", client.AuthHeader())
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.HTTP.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("la solicitud de actualización falló: %w", err)
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("error al actualizar la definición: %s", string(body))
-	}
-
-	var updatedDef models.BuildDefinition
-	if err := json.Unmarshal(body, &updatedDef); err != nil {
-		return nil, fmt.Errorf("error al decodificar la respuesta de actualización: %w", err)
-	}
-
-	name := ""
-
-	if updatedDef.Name != nil {
-		name = *updatedDef.Name
-	}
-	fmt.Printf("✔ Pipeline '%s' (ID: %d) actualizado con éxito.\n", name, id)
-	return &updatedDef, nil
+	return &updated, nil
 }

@@ -2,63 +2,43 @@ package variable_group
 
 import (
 	"azuredevops/azdevops"
-	"azuredevops/azdevops/organization"
 	"azuredevops/models"
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
+	"net/url"
 	"strings"
 )
 
-func SetPermissionsOptimized(client *azdevops.Client, variableGroup *models.VariableGroup, identityIDs []string, role string) error {
-	validRoles := map[string]bool{"reader": true, "user": true, "administrator": true}
-	normalizedRole := strings.ToLower(role)
-	if !validRoles[normalizedRole] {
-		return fmt.Errorf("el rol '%s' no es válido. Roles válidos: Reader, User, Administrator", role)
-	}
-	role = strings.Title(normalizedRole)
+// ValidRoles son los roles que se pueden asignar en un Variable Group.
+var ValidRoles = []string{"Reader", "User", "Administrator"}
 
-	assignments := make([]models.SecurityRoleAssignment, len(identityIDs))
-	for i, id := range identityIDs {
-		assignments[i] = models.SecurityRoleAssignment{
-			RoleName: role,
-			UserID:   id,
+// NormalizeRole valida un rol sin distinguir mayúsculas y lo devuelve con el formato de la API.
+func NormalizeRole(role string) (string, error) {
+	for _, r := range ValidRoles {
+		if strings.EqualFold(r, role) {
+			return r, nil
 		}
 	}
+	return "", fmt.Errorf("el rol '%s' no es válido. Roles válidos: %s", role, strings.Join(ValidRoles, ", "))
+}
 
-	if len(assignments) == 0 {
-		return fmt.Errorf("no se proporcionaron identidades para asignar permisos")
-	}
-
-	project, err := organization.GetOrganizationInfo(client)
-	if err != nil {
-		return fmt.Errorf("no se pudo obtener la información del proyecto: %w", err)
-	}
-
-	payload, err := json.Marshal(assignments)
-	if err != nil {
-		return fmt.Errorf("error al serializar el payload: %w", err)
-	}
-
-	url := fmt.Sprintf("https://dev.azure.com/%s/_apis/securityroles/scopes/distributedtask.variablegroup/roleassignments/resources/%s$%d?api-version=7.1-preview.1",
-		client.Org, project.ID, variableGroup.Id)
-
-	req, _ := http.NewRequest("PUT", url, bytes.NewBuffer(payload))
-	req.Header.Set("Authorization", client.AuthHeader())
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.HTTP.Do(req)
+// SetPermissions asigna un rol a las identidades indicadas en un Variable Group.
+func SetPermissions(client *azdevops.Client, projectID string, groupID int, identityIDs []string, role string) error {
+	role, err := NormalizeRole(role)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("error al asignar permisos (código %d): %s", resp.StatusCode, string(body))
+	if len(identityIDs) == 0 {
+		return fmt.Errorf("no se proporcionaron identidades para asignar permisos")
 	}
 
+	assignments := make([]models.SecurityRoleAssignment, len(identityIDs))
+	for i, id := range identityIDs {
+		assignments[i] = models.SecurityRoleAssignment{RoleName: role, UserID: id}
+	}
+
+	path := fmt.Sprintf("securityroles/scopes/distributedtask.variablegroup/roleassignments/resources/%s$%d", projectID, groupID)
+	if err := client.Do("PUT", client.OrgURL(path, url.Values{"api-version": {"7.1-preview.1"}}), assignments, nil); err != nil {
+		return fmt.Errorf("error al asignar permisos: %w", err)
+	}
 	return nil
 }

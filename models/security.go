@@ -1,10 +1,11 @@
 package models
 
 type GraphGroup struct {
-	DisplayName string `json:"displayName"`
-	Description string `json:"description"`
-	Descriptor  string `json:"descriptor"`
-	URL         string `json:"url"`
+	DisplayName   string `json:"displayName"`
+	PrincipalName string `json:"principalName"`
+	Description   string `json:"description"`
+	Descriptor    string `json:"descriptor"`
+	URL           string `json:"url"`
 }
 
 type GraphUser struct {
@@ -29,4 +30,12 @@ type SubjectQueryPayload struct {
 
 type SubjectQueryResponse struct {
 	Value []GraphGroup `json:"value"`
+}
+
+type GraphSubject struct {
+	DisplayName   string `json:"displayName"`
+	PrincipalName string `json:"principalName"`
+	MailAddress   string `json:"mailAddress"`
+	SubjectKind   string `json:"subjectKind"`
+	Descriptor    string `json:"descriptor"`
 }

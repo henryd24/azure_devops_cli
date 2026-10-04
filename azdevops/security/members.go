@@ -3,83 +3,69 @@ package security
 import (
 	"azuredevops/azdevops"
 	"azuredevops/models"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
+	"sort"
 )
 
+// GetUserByPrincipalName busca un usuario por email/UPN.
 func GetUserByPrincipalName(client *azdevops.Client, principalName string) (*models.Identity, error) {
-	encodedFilterValue := url.QueryEscape(principalName)
-	url := fmt.Sprintf("https://vssps.dev.azure.com/%s/_apis/identities?searchFilter=General&filterValue=%s&api-version=7.1-preview.1", client.Org, encodedFilterValue)
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Add("Authorization", client.AuthHeader())
-
-	resp, err := client.HTTP.Do(req)
+	identities, err := searchIdentities(client, principalName)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	var result struct {
-		Value []models.Identity `json:"value"`
+	if len(identities) == 0 {
+		return nil, fmt.Errorf("no se encontró el usuario '%s'", principalName)
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
-	}
-	if len(result.Value) == 0 {
-		return nil, fmt.Errorf("no se encontró al usuario '%s'", principalName)
-	}
-	fmt.Printf("✔ Usuario encontrado: %s (ID: %s)\n", result.Value[0].DisplayName, result.Value[0].ID)
-
-	return &result.Value[0], nil
+	return &identities[0], nil
 }
 
-func AddUserToGroup(client *azdevops.Client, groupDescriptor, userPrincipalName string) (bool, error) {
-	userIdentity, err := GetUserByPrincipalName(client, userPrincipalName)
-	if err != nil {
-		return false, err
-	}
-
-	url := fmt.Sprintf("https://vssps.dev.azure.com/%s/_apis/graph/memberships/%s/%s?api-version=7.1-preview.1", client.Org, userIdentity.SubjectDescriptor, groupDescriptor)
-
-	req, _ := http.NewRequest("PUT", url, nil)
-	req.Header.Set("Authorization", client.AuthHeader())
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.HTTP.Do(req)
-	if err != nil {
-		return false, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
-		return false, fmt.Errorf("error al agregar el miembro: %s", string(body))
-	}
-
-	return true, nil
+// AddMembership agrega subjectDescriptor (usuario o grupo) como miembro de containerDescriptor.
+func AddMembership(client *azdevops.Client, containerDescriptor, subjectDescriptor string) error {
+	path := fmt.Sprintf("graph/memberships/%s/%s", subjectDescriptor, containerDescriptor)
+	return client.Do("PUT", client.VSSPSURL(path, url.Values{"api-version": {"7.1-preview.1"}}), nil, nil)
 }
 
-func AddUserToGroupOptimized(client *azdevops.Client, groupDescriptor, userDescriptor string) (bool, error) {
-	url := fmt.Sprintf("https://vssps.dev.azure.com/%s/_apis/graph/memberships/%s/%s?api-version=7.1-preview.1",
-		client.Org, userDescriptor, groupDescriptor)
+// RemoveMembership quita subjectDescriptor de containerDescriptor.
+func RemoveMembership(client *azdevops.Client, containerDescriptor, subjectDescriptor string) error {
+	path := fmt.Sprintf("graph/memberships/%s/%s", subjectDescriptor, containerDescriptor)
+	return client.Do("DELETE", client.VSSPSURL(path, url.Values{"api-version": {"7.1-preview.1"}}), nil, nil)
+}
 
-	req, _ := http.NewRequest("PUT", url, nil)
-	req.Header.Set("Authorization", client.AuthHeader())
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.HTTP.Do(req)
-	if err != nil {
-		return false, err
+// ListMembers devuelve los miembros directos de un grupo.
+func ListMembers(client *azdevops.Client, groupDescriptor string) ([]models.GraphSubject, error) {
+	q := url.Values{"direction": {"down"}, "api-version": {"7.1-preview.1"}}
+	var memberships struct {
+		Value []struct {
+			MemberDescriptor string `json:"memberDescriptor"`
+		} `json:"value"`
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
-		return false, fmt.Errorf("error al agregar el miembro (código %d): %s", resp.StatusCode, string(body))
+	if err := client.Do("GET", client.VSSPSURL("graph/memberships/"+groupDescriptor, q), nil, &memberships); err != nil {
+		return nil, fmt.Errorf("error al obtener los miembros: %w", err)
+	}
+	if len(memberships.Value) == 0 {
+		return nil, nil
 	}
 
-	return true, nil
+	type lookupKey struct {
+		Descriptor string `json:"descriptor"`
+	}
+	lookup := struct {
+		LookupKeys []lookupKey `json:"lookupKeys"`
+	}{}
+	for _, m := range memberships.Value {
+		lookup.LookupKeys = append(lookup.LookupKeys, lookupKey{m.MemberDescriptor})
+	}
+	var subjects struct {
+		Value map[string]models.GraphSubject `json:"value"`
+	}
+	if err := client.Do("POST", client.VSSPSURL("graph/subjectlookup", url.Values{"api-version": {"7.1-preview.1"}}), lookup, &subjects); err != nil {
+		return nil, fmt.Errorf("error al resolver los miembros: %w", err)
+	}
+	members := make([]models.GraphSubject, 0, len(subjects.Value))
+	for _, s := range subjects.Value {
+		members = append(members, s)
+	}
+	sort.Slice(members, func(i, j int) bool { return members[i].DisplayName < members[j].DisplayName })
+	return members, nil
 }
