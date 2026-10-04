@@ -12,6 +12,7 @@ Herramienta de línea de comandos (CLI) no oficial para interactuar con Azure De
 * **Work items (Boards)**: listar los tuyos, consultar, crear, cambiar estado, comentar, reasignar y eliminar.
 * **Conexiones de servicio y agentes**: listar, ver qué pipelines usan una conexión, compartirla con otros proyectos; ver pools y agentes (en línea, trabajo actual) y habilitarlos o deshabilitarlos.
 * **Archivos seguros**: listar, ver quién y qué pipelines pueden usarlos, subir, autorizar pipelines, asignar roles, eliminar y **reemplazar el contenido conservando permisos, roles y aprobaciones**.
+* **Extensiones**: `azdevops extension init` crea una extensión lista para compilar, probar y empaquetar (tareas TypeScript con azure-pipelines-task-lib, jest, ncc, azde-scripts, configuraciones dev/release, iconos y UUIDs), y `add-task`, `bump`, `validate`, `reset-ids`, `pack` y `publish` la mantienen.
 * **`azdevops open`**: abre en el navegador el proyecto, un pipeline, una ejecución, un work item, etc.
 * **Seguridad**: listar y buscar grupos, ver miembros, agregar y quitar miembros.
 * **Salida** en tabla, JSON, YAML o TSV (`-o`), con filtros **JMESPath** (`--query`, igual que en `az`). Los mensajes de estado van a *stderr* y los datos a *stdout*.
@@ -183,6 +184,41 @@ azdevops sf replace ./cert-2026.pfx --name cert.pfx --yes
 ```
 
 `replace` actualiza el contenido de un archivo seguro (por ejemplo, un certificado renovado) conservando su nombre, propiedades, pipelines autorizados (o el acceso abierto), roles asignados, herencia de permisos y aprobaciones/checks. Como Azure DevOps no permite cambiar el contenido ni tener dos archivos con el mismo nombre, renombra el actual, sube el nuevo, copia la configuración y elimina el anterior (`--keep-old` lo conserva renombrado). Si algo falla, revierte los cambios. El archivo nuevo tiene otro ID: los pipelines YAML lo referencian por nombre y siguen funcionando.
+
+### Extensiones de Azure DevOps (`extension`, alias `ext`)
+
+```bash
+azdevops ext init                                   # asistente: nombre, publisher, tareas, conexión de servicio…
+azdevops ext init mi-ext --name "Mi Ext" --publisher hendamm --task deploy --task rollback \
+  --endpoint --endpoint-name "Mi API" --install --git --yes
+
+azdevops ext add-task otra-tarea --category Deploy --endpoint   # nueva tarea con UUID nuevo, registrada en vss-extension.json
+azdevops ext bump                                   # patch de todas las tareas + config/dev.json
+azdevops ext bump --level minor --release           # minor de tareas + config/release.json
+azdevops ext validate                               # ids repetidos, contribuciones, iconos, versiones
+azdevops ext reset-ids                              # UUIDs nuevos (al copiar otra extensión como base)
+azdevops ext uuid -n 3
+azdevops ext pack                                   # .vsix de dev (--release, --rev-version)
+azdevops ext publish                                # publica la versión dev y la comparte con tu organización
+```
+
+Estructura generada:
+
+```
+vss-extension.json        manifiesto (tareas, conexión de servicio opcional, iconos)
+config/dev.json           overrides del paquete privado (id-dev, publisher dev-<publisher>)
+config/release.json       overrides del paquete público
+images/                   icono de la extensión y de la conexión de servicio
+scripts/tasks.js          ejecuta un script de npm en todas las tareas
+src/tasks/<tarea>/
+  task.json               UUID nuevo, inputs de ejemplo, Node20_1 y Node24
+  src/<tarea>.ts          punto de entrada; src/utils/inputs.ts lee y valida los inputs
+  src/__tests__/          tests con jest (azure-pipelines-task-lib mockeado)
+  .env-test               variables para ejecutarla localmente (npm run test-local)
+  package.json            build (tsc), test (jest), package (ncc → tasks/<tarea>/index.js)
+```
+
+Scripts del proyecto: `npm install` (instala todas las tareas con azde-scripts), `npm test`, `npm run build`, `npm run pack:dev`, `npm run pack`, `npm run packupversion[:dev]`. `publish` necesita un PAT con el scope *Marketplace (Publish)* (`--token` o `AZURE_MARKETPLACE_TOKEN`). Los comandos que editan JSON (`add-task`, `bump`, `reset-ids`) conservan el formato y el orden de tus archivos.
 
 ### Abrir en el navegador
 

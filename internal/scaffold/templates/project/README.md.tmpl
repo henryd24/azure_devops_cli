@@ -1,0 +1,44 @@
+# {{.Project.Name}}
+
+{{.Project.Description}}
+
+# Usage and Inputs
+
+{{range .Tasks}}## {{.FriendlyName}}
+
+{{.Description}}
+
+```yaml
+- task: {{.Name}}@{{.Major}}
+  inputs:
+    message: "Hello"
+{{- if .Endpoint}}
+    useSVC: false
+{{- end}}
+```
+
+| Input | Required | Description |
+| ----- | -------- | ----------- |
+| `message` | yes | Message to print. |
+| `verbose` | no | Prints extra debug information. |
+{{- if .Endpoint}}
+| `useSVC` | yes | Use the "{{.Endpoint.DisplayName}}" service connection. |
+| `serviceConnection` | no | Service connection to use when `useSVC` is true. |
+{{- end}}
+
+Output variables: `result`.
+
+{{end -}}
+# Development
+
+```bash
+npm install                 # installs root and every task (azde-scripts)
+npm test                    # jest in every task
+npm run pack:dev            # private dev package (config/dev.json)
+npm run packupversion:dev   # same, increasing the extension version
+npm run pack                # release package (config/release.json)
+```
+
+Run a task locally: copy `src/tasks/<task>/.env-test` to `.env`, fill it and run `npm run test-local` inside the task folder.
+
+Remember to increase the task version in `task.json` (or run `azdevops extension bump`) every time you publish, otherwise agents keep the cached version.

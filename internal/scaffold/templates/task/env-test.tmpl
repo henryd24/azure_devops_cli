@@ -1,0 +1,20 @@
+# Copia este archivo a .env y ejecuta: npm run test-local
+
+# Inputs
+INPUT_MESSAGE=Hello from {{.Task.FriendlyName}}
+INPUT_VERBOSE=true
+{{- if .Task.Endpoint}}
+INPUT_USESVC=false
+INPUT_SERVICECONNECTION=MyServiceConnectionId
+{{- end}}
+
+# Variables del agente
+SYSTEM_ACCESSTOKEN=CHANGEME
+SYSTEM_TEAMFOUNDATIONCOLLECTIONURI=https://dev.azure.com/CHANGEME/
+SYSTEM_TEAMPROJECT=CHANGEME
+{{- if .Task.Endpoint}}
+
+# Service connection MyServiceConnectionId
+ENDPOINT_URL_MyServiceConnectionId={{.Task.Endpoint.URL}}
+ENDPOINT_AUTH_PARAMETER_MyServiceConnectionId_APITOKEN=CHANGEME
+{{- end}}

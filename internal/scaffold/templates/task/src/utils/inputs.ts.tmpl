@@ -1,0 +1,35 @@
+import * as tl from "azure-pipelines-task-lib";
+
+export interface TaskInputs {
+  message: string;
+  verbose: boolean;
+{{- if .Task.Endpoint}}
+  serviceUrl?: string;
+{{- end}}
+  token?: string;
+}
+
+/**
+ * Lee y valida los inputs de la tarea.
+ */
+export function getInputs(): TaskInputs {
+  const message = tl.getInput("message", true) ?? "";
+  if (!message.trim()) {
+    throw new Error("The 'message' input cannot be empty");
+  }
+  const verbose = tl.getBoolInput("verbose", false);
+{{- if .Task.Endpoint}}
+
+  if (tl.getBoolInput("useSVC", false)) {
+    const connection = tl.getInput("serviceConnection", true)!;
+    const serviceUrl = tl.getEndpointUrl(connection, false);
+    const token = tl.getEndpointAuthorizationParameter(connection, "apitoken", false);
+    if (token) {
+      tl.setSecret(token);
+    }
+    return { message, verbose, serviceUrl, token };
+  }
+{{- end}}
+
+  return { message, verbose, token: tl.getVariable("System.AccessToken") };
+}

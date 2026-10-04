@@ -3,6 +3,7 @@ package main
 import (
 	"azuredevops/cmd"
 	_ "azuredevops/cmd/environments"
+	_ "azuredevops/cmd/extension"
 	_ "azuredevops/cmd/infra"
 	_ "azuredevops/cmd/interactive"
 	_ "azuredevops/cmd/pipelines"

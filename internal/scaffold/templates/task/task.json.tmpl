@@ -1,0 +1,65 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Microsoft/azure-pipelines-task-lib/master/tasks.schema.json",
+  "id": "{{.Task.UUID}}",
+  "name": "{{.Task.Name}}",
+  "friendlyName": "{{j .Task.FriendlyName}}",
+  "description": "{{j .Task.Description}}",
+  "helpMarkDown": "{{j .Task.Description}}",
+  "category": "{{.Task.Category}}",
+  "author": "{{j .Project.Author}}",
+  "version": {
+    "Major": {{.Task.Major}},
+    "Minor": {{.Task.Minor}},
+    "Patch": {{.Task.Patch}}
+  },
+  "visibility": ["Build", "Release"],
+  "instanceNameFormat": "{{j .Task.FriendlyName}}",
+  "inputs": [{{if .Task.Endpoint}}
+    {
+      "name": "useSVC",
+      "type": "boolean",
+      "label": "Use Service Connection",
+      "defaultValue": "false",
+      "required": true
+    },
+    {
+      "name": "serviceConnection",
+      "type": "connectedService:{{.Task.Endpoint.Name}}",
+      "label": "{{j .Task.Endpoint.DisplayName}}",
+      "visibleRule": "useSVC = true",
+      "required": false,
+      "helpMarkDown": "Select the service connection to use."
+    },{{end}}
+    {
+      "name": "message",
+      "type": "string",
+      "label": "Message",
+      "defaultValue": "Hello",
+      "required": true,
+      "helpMarkDown": "Message to print."
+    },
+    {
+      "name": "verbose",
+      "type": "boolean",
+      "label": "Verbose",
+      "defaultValue": "false",
+      "required": false,
+      "helpMarkDown": "Prints extra debug information."
+    }
+  ],
+  "outputVariables": [
+    {
+      "name": "result",
+      "description": "Result produced by the task"
+    }
+  ],
+  "execution": {
+    "Node20_1": {
+      "target": "index.js"
+    },
+    "Node24": {
+      "target": "index.js"
+    }
+  },
+  "minimumAgentVersion": "4.248.0"
+}

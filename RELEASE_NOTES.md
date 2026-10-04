@@ -46,6 +46,10 @@ Esta versión convierte la CLI en una herramienta interactiva y mucho más compl
 - `securefiles list | get | upload | delete | authorize | set-role` (alias `sf`).
 - `securefiles replace`: reemplaza el contenido conservando nombre, propiedades, pipelines autorizados, roles asignados, herencia de permisos y aprobaciones/checks, con `--dry-run`, `--keep-old` y reversión automática si algo falla.
 
+### Extensiones de Azure DevOps
+- `extension init`: crea una extensión lista para usar (tareas TypeScript, jest, ncc, azde-scripts, tfx, config dev/release, iconos de ejemplo, UUIDs y conexión de servicio opcional), en modo guiado o con flags.
+- `extension add-task | bump | validate | reset-ids | uuid | pack | publish` para mantenerla, editando los JSON sin alterar su formato.
+
 ### Navegador
 - `azdevops open [project|pipeline|run|variables|workitem|repo|approvals|…]`, con `--print` para solo obtener la URL.
 
