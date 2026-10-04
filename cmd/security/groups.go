@@ -42,11 +42,11 @@ var listGroupsCmd = &cobra.Command{
 		}); err != nil {
 			return err
 		}
-		if out == "json" {
+		if out != "table" {
 			if groups == nil {
 				groups = []models.GraphGroup{}
 			}
-			return ui.PrintJSON(groups)
+			return cmd.Print(groups)
 		}
 		rows := make([][]string, len(groups))
 		for i, g := range groups {
@@ -79,7 +79,7 @@ var searchGroupCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return ui.PrintJSON(group)
+		return cmd.Print(group)
 	},
 }
 
@@ -113,11 +113,11 @@ var listMembersCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if out == "json" {
+		if out != "table" {
 			if members == nil {
 				members = []models.GraphSubject{}
 			}
-			return ui.PrintJSON(members)
+			return cmd.Print(members)
 		}
 		if len(members) == 0 {
 			ui.Info("El grupo '%s' no tiene miembros directos", name)

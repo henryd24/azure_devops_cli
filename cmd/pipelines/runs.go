@@ -45,11 +45,11 @@ var runsCmd = &cobra.Command{
 		}); err != nil {
 			return err
 		}
-		if out == "json" {
+		if out != "table" {
 			if builds == nil {
 				builds = []models.Build{}
 			}
-			return ui.PrintJSON(builds)
+			return cmd.Print(builds)
 		}
 		if len(builds) == 0 {
 			ui.Info("No hay ejecuciones.")
@@ -82,8 +82,8 @@ var statusCmd = &cobra.Command{
 			ui.Link(build.Links.Web.Href)
 			return waitAndReport(client, buildID, 10*time.Second, 0)
 		}
-		if cmd.WantsJSON() {
-			return ui.PrintJSON(build)
+		if cmd.WantsData() {
+			return cmd.Print(build)
 		}
 		printBuildsTable([]models.Build{*build})
 		fmt.Fprintln(ui.Out)

@@ -5,7 +5,6 @@ import (
 
 	vg "azuredevops/azdevops/variable_group"
 	"azuredevops/cmd"
-	"azuredevops/internal/ui"
 	"azuredevops/models"
 
 	"github.com/spf13/cobra"
@@ -49,8 +48,8 @@ var getVariableGroupCmd = &cobra.Command{
 			}
 		}
 
-		if out == "json" {
-			return ui.PrintJSON(groups)
+		if out != "table" {
+			return cmd.Print(groups)
 		}
 		for _, g := range groups {
 			printGroupVariables(g)

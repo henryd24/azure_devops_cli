@@ -52,8 +52,8 @@ var createPipelineCmd = &cobra.Command{
 		}
 		ui.Success("Pipeline '%s' creado (ID: %d)", created.Name, created.ID)
 		ui.Link(created.Links.Web.Href)
-		if cmd.WantsJSON() {
-			return ui.PrintJSON(created)
+		if cmd.WantsData() {
+			return cmd.Print(created)
 		}
 		return nil
 	},

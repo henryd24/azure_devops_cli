@@ -81,8 +81,8 @@ devuelve un código de salida distinto de 0 si la ejecución falló o fue cancel
 		ui.Link(run.Links.Web.Href)
 
 		if !wait {
-			if cmd.WantsJSON() {
-				return ui.PrintJSON(run)
+			if cmd.WantsData() {
+				return cmd.Print(run)
 			}
 			return nil
 		}
@@ -120,8 +120,8 @@ func waitAndReport(client *azdevops.Client, buildID int, interval, timeout time.
 		return err
 	}
 
-	if cmd.WantsJSON() {
-		_ = ui.PrintJSON(build)
+	if cmd.WantsData() {
+		_ = cmd.Print(build)
 	}
 	duration := ui.FormatDuration(build.StartTime, build.FinishTime)
 	switch build.Result {

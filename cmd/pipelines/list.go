@@ -35,11 +35,11 @@ var listPipelinesCmd = &cobra.Command{
 		}); err != nil {
 			return err
 		}
-		if out == "json" {
+		if out != "table" {
 			if defs == nil {
 				defs = []models.BuildDefinition{}
 			}
-			return ui.PrintJSON(defs)
+			return cmd.Print(defs)
 		}
 		if len(defs) == 0 {
 			ui.Info("No se encontraron pipelines.")

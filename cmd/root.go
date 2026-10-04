@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"azuredevops/azdevops"
@@ -16,6 +17,7 @@ var globalFlags struct {
 	pat     string
 	profile string
 	output  string
+	query   string
 	noInput bool
 	debug   bool
 }
@@ -52,19 +54,30 @@ func init() {
 	pf.StringVar(&globalFlags.project, "project", "", "Proyecto de Azure DevOps (env: AZURE_PROJECT)")
 	pf.StringVar(&globalFlags.pat, "pat", "", "Personal Access Token (env: AZURE_PAT). Preferible usar la variable de entorno o 'azdevops login'")
 	pf.StringVar(&globalFlags.profile, "profile", "", "Perfil guardado a usar (env: AZDEVOPS_PROFILE)")
-	pf.StringVarP(&globalFlags.output, "output", "o", "", "Formato de salida: json o table")
+	pf.StringVarP(&globalFlags.output, "output", "o", "", "Formato de salida: table, json, yaml o tsv")
+	pf.StringVarP(&globalFlags.query, "query", "q", "", "Consulta JMESPath para filtrar la salida (p. ej. \"[].{id:id, nombre:name}\")")
 	pf.BoolVar(&globalFlags.noInput, "no-input", false, "Nunca preguntar de forma interactiva (env: AZDEVOPS_NO_INPUT)")
 	pf.BoolVar(&globalFlags.debug, "debug", false, "Muestra las peticiones HTTP realizadas")
 
 	_ = RootCmd.RegisterFlagCompletionFunc("output", func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
-		return []string{"json", "table"}, cobra.ShellCompDirectiveNoFileComp
+		return []string{"table", "json", "yaml", "tsv"}, cobra.ShellCompDirectiveNoFileComp
 	})
 	RootCmd.SetVersionTemplate("azdevops {{.Version}}\n")
 }
 
+// ExitError termina el proceso con Code sin imprimir un mensaje de error
+// (p. ej. "variables diff --exit-code" cuando hay diferencias).
+type ExitError struct{ Code int }
+
+func (e ExitError) Error() string { return fmt.Sprintf("código de salida %d", e.Code) }
+
 // Execute ejecuta la CLI y termina el proceso con el código adecuado.
 func Execute() {
 	if err := RootCmd.Execute(); err != nil {
+		var exitErr ExitError
+		if errors.As(err, &exitErr) {
+			os.Exit(exitErr.Code)
+		}
 		if errors.Is(err, ui.ErrAborted) {
 			ui.Warn("%v", err)
 			os.Exit(130)

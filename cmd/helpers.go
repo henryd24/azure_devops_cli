@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -12,15 +13,38 @@ import (
 )
 
 // Output devuelve el formato de salida pedido con -o, o def si no se indicó.
+// Con --query y sin -o explícito se usa json en lugar de table.
 func Output(def string) (string, error) {
 	out := strings.ToLower(globalFlags.output)
 	if out == "" {
 		out = def
+		if out == "table" && globalFlags.query != "" {
+			out = "json"
+		}
 	}
-	if out != "json" && out != "table" {
-		return "", fmt.Errorf("formato de salida '%s' no soportado (usa json o table)", out)
+	if out != "table" && !slices.Contains(ui.DataFormats, out) {
+		return "", fmt.Errorf("formato de salida '%s' no soportado (usa table, json, yaml o tsv)", out)
 	}
 	return out, nil
+}
+
+// Print imprime datos en el formato pedido (json por defecto), aplicando --query.
+func Print(v any) error {
+	out, err := Output("json")
+	if err != nil {
+		return err
+	}
+	if out == "table" {
+		out = "json"
+	}
+	return ui.Render(ui.Out, v, out, globalFlags.query)
+}
+
+// WantsData indica si el usuario pidió explícitamente datos (-o json/yaml/tsv o --query),
+// útil en comandos de acción que normalmente solo muestran mensajes.
+func WantsData() bool {
+	o := strings.ToLower(globalFlags.output)
+	return globalFlags.query != "" || (o != "" && o != "table")
 }
 
 // ParseVariables interpreta entradas "clave=valor" o "secret:clave=valor".
@@ -138,9 +162,4 @@ func PositiveInt(s string) error {
 // NoFileComp desactiva el autocompletado de archivos para un flag.
 func NoFileComp(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
 	return nil, cobra.ShellCompDirectiveNoFileComp
-}
-
-// WantsJSON indica si el usuario pidió explícitamente -o json.
-func WantsJSON() bool {
-	return strings.EqualFold(globalFlags.output, "json")
 }

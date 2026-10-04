@@ -15,7 +15,8 @@ var loginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Guarda organización, proyecto y PAT en un perfil",
 	Long: `Valida las credenciales contra Azure DevOps y las guarda en un perfil
-(~/.config/azdevops/config.json, permisos 0600).
+(~/.config/azdevops/config.json, permisos 0600). El PAT se guarda en el llavero
+del sistema (Keychain, Credential Manager o Secret Service) cuando está disponible.
 
 En una terminal se te preguntará lo que falte; para scripts usa:
   azdevops login --org mi-org --project mi-proyecto --pat $AZURE_PAT [--profile trabajo]`,
@@ -26,7 +27,7 @@ En una terminal se te preguntará lo que falte; para scripts usa:
 		}
 		defaults := config.Profile{Org: globalFlags.org, Project: globalFlags.project, PAT: globalFlags.pat}
 		if defaults.Org != "" && defaults.Project != "" && defaults.PAT != "" {
-			return saveProfile(name, defaults)
+			return saveProfile(name, defaults, loginStore)
 		}
 		if !ui.Interactive() {
 			return fmt.Errorf("en modo no interactivo debes indicar --org, --project y --pat")
@@ -69,20 +70,29 @@ func runLoginWizard(name string, defaults config.Profile) (config.Profile, error
 			return p, err
 		}
 	}
-	return p, saveProfile(name, p)
+	return p, saveProfile(name, p, loginStore)
 }
 
-func saveProfile(name string, p config.Profile) error {
+func saveProfile(name string, p config.Profile, store string) error {
 	client := azdevops.NewClient(p.Org, p.Project, p.PAT)
 	client.Debug = globalFlags.debug
-	if err := ui.Spinner("Validando credenciales...", func() error {
-		_, err := organization.GetProject(client)
+	var user *organization.User
+	if err := ui.Spinner("Validando credenciales...", func() (err error) {
+		if user, err = organization.CurrentUser(client); err != nil {
+			return err
+		}
+		_, err = organization.GetProject(client)
 		return err
 	}); err != nil {
 		return fmt.Errorf("no se pudieron validar las credenciales: %w", err)
 	}
 
 	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	pat := p.PAT
+	where, err := config.SetPAT(name, &p, pat, store)
 	if err != nil {
 		return err
 	}
@@ -94,7 +104,12 @@ func saveProfile(name string, p config.Profile) error {
 		return fmt.Errorf("no se pudo guardar la configuración: %w", err)
 	}
 	path, _ := config.Path()
-	ui.Success("Perfil '%s' guardado (%s/%s) en %s", name, p.Org, p.Project, path)
+	ui.Success("Perfil '%s' guardado (%s/%s) en %s — sesión de %s", name, p.Org, p.Project, path, user.DisplayName)
+	if where == config.StoreKeyring {
+		ui.Info("El PAT se guardó en el llavero del sistema")
+	} else {
+		ui.Warn("El PAT se guardó en el archivo de configuración (permisos 0600); usa --store keyring si tu sistema tiene llavero")
+	}
 	if cfg.Current != name {
 		ui.Info("Para usarlo por defecto: azdevops config use %s", name)
 	}
@@ -102,6 +117,9 @@ func saveProfile(name string, p config.Profile) error {
 	return nil
 }
 
+var loginStore string
+
 func init() {
+	loginCmd.Flags().StringVar(&loginStore, "store", config.StoreAuto, "Dónde guardar el PAT: auto (llavero si está disponible), keyring o file")
 	RootCmd.AddCommand(loginCmd)
 }

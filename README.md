@@ -1,15 +1,19 @@
 # Azure DevOps CLI
 
-Herramienta de línea de comandos (CLI) no oficial para interactuar con Azure DevOps. Simplifica la gestión de *Variable Groups*, *Pipelines* y *grupos de seguridad* desde tu terminal, tanto de forma **interactiva** (menús y asistentes) como en **scripts y CI**.
+Herramienta de línea de comandos (CLI) no oficial para interactuar con Azure DevOps. Simplifica la gestión de *Variable Groups*, *Pipelines*, aprobaciones, *work items*, conexiones de servicio, agentes y *grupos de seguridad* desde tu terminal, tanto de forma **interactiva** (menús y asistentes) como en **scripts y CI**.
 
 ## Características
 
 * **Modo interactivo**: ejecuta `azdevops` sin argumentos para navegar por menús. Además, cualquier comando al que le falte un dato te lo pregunta (con listas filtrables de Variable Groups, pipelines, repositorios, ejecuciones…).
-* **Perfiles**: guarda organización, proyecto y PAT con `azdevops login` y cambia entre varios con `azdevops config use`.
-* **Variable Groups**: listar, consultar, crear, actualizar, eliminar (grupos o variables), asignar permisos y **exportar/importar** desde `.env` o JSON.
+* **Perfiles**: guarda organización, proyecto y PAT con `azdevops login` (el PAT va al **llavero del sistema** cuando está disponible) y cambia entre varios con `azdevops config use`.
+* **Variable Groups**: listar, consultar, crear, actualizar, eliminar (grupos o variables), asignar permisos, **exportar/importar** desde `.env` o JSON, **copiar** (incluso a otro proyecto) y **comparar** (`diff`).
 * **Pipelines**: listar con su último resultado, crear, actualizar, eliminar, **ejecutar con progreso en vivo**, ver ejecuciones, estado por etapas, **logs** (incluyendo solo las tareas fallidas) y cancelar.
+* **Aprobaciones y environments**: ver aprobaciones de despliegue pendientes y aprobarlas o rechazarlas; listar environments y su historial de despliegues.
+* **Work items (Boards)**: listar los tuyos, consultar, crear, cambiar estado, comentar, reasignar y eliminar.
+* **Conexiones de servicio y agentes**: listar, ver qué pipelines usan una conexión, compartirla con otros proyectos; ver pools y agentes (en línea, trabajo actual) y habilitarlos o deshabilitarlos.
+* **`azdevops open`**: abre en el navegador el proyecto, un pipeline, una ejecución, un work item, etc.
 * **Seguridad**: listar y buscar grupos, ver miembros, agregar y quitar miembros.
-* **Salida** en tabla o JSON (`-o table|json`), mensajes de estado en *stderr* y datos en *stdout* para poder encadenar con `jq`.
+* **Salida** en tabla, JSON, YAML o TSV (`-o`), con filtros **JMESPath** (`--query`, igual que en `az`). Los mensajes de estado van a *stderr* y los datos a *stdout*.
 * **Autocompletado** de comandos, flags, nombres de Variable Groups e IDs de pipelines.
 * Cliente HTTP robusto: errores legibles de la API, detección de PAT inválido/expirado, reintentos ante *throttling* (429) y errores 5xx, y `--debug` para ver cada petición.
 
@@ -39,7 +43,7 @@ azdevops config view                # lista perfiles (PAT enmascarado) y la conf
 azdevops config use cliente2        # cambia el perfil por defecto
 ```
 
-El perfil se guarda en `~/.config/azdevops/config.json` con permisos `0600`.
+El perfil se guarda en `~/.config/azdevops/config.json` con permisos `0600`. El PAT se guarda en el **llavero del sistema** (Keychain en macOS, Credential Manager en Windows, Secret Service/GNOME Keyring en Linux) si está disponible; si no, en ese archivo. Puedes forzarlo con `--store keyring` o `--store file`.
 
 También puedes usar variables de entorno (ideal para CI) o flags:
 
@@ -82,11 +86,17 @@ azdevops variables set-permissions --variable MiGrupo --user ana@empresa.com --g
 azdevops variables export --name MiGrupo > .env                    # o --format json --file vars.json
 azdevops variables import --name MiGrupo --file .env --secret DB_PASSWORD
 azdevops variables import --name NuevoGrupo --file vars.json --create
+
+azdevops variables copy --from app-dev --to app-qa
+azdevops variables copy --from app-dev --to app-dev --to-project OtroProyecto --secret-value DB_PASS=xxx
+azdevops variables diff app-dev app-prod                       # solo lo que cambia
+azdevops variables diff app-prod app-prod --project-b Otro --all
+azdevops variables diff app-dev app-prod --exit-code           # código 1 si hay diferencias (CI)
 ```
 
 * Usa el prefijo `secret:` para crear variables secretas.
 * Los grupos de seguridad se indican sin el prefijo `[Proyecto]\`.
-* La API no devuelve el valor de las variables secretas, por eso `export` las deja comentadas.
+* La API no devuelve el valor de las variables secretas: `export` las deja comentadas, `copy` te pide su valor (o usa `--secret-value`) y `diff` solo compara si existen.
 
 ### Pipelines (`pipelines`, alias `pl`)
 
@@ -114,6 +124,58 @@ azdevops pipelines cancel --build-id 4567
 
 Con `--wait`, el comando termina con código **1** si la ejecución falla o se cancela y muestra las tareas con error, lo que permite usarlo como paso de CI.
 
+### Aprobaciones y environments
+
+```bash
+azdevops approvals list                                   # pendientes
+azdevops approvals list --state all -o json
+azdevops approvals approve --id <id> --comment "OK para prod"
+azdevops approvals approve                                # elegir de la lista
+azdevops approvals reject --id <id> --comment "Falta validar" --yes
+
+azdevops environments list
+azdevops environments deployments --name produccion --top 10
+```
+
+### Work items (`workitems`, alias `wi`)
+
+```bash
+azdevops wi list                                          # tus work items abiertos
+azdevops wi list --type Bug --state Active --assigned-to any
+azdevops wi list --search "login" --all-states
+azdevops wi list --wiql "SELECT [System.Id] FROM WorkItems WHERE [System.Tags] CONTAINS 'urgente'"
+azdevops wi get 123
+azdevops wi create --type Bug --title "Falla el login" --assigned-to @me --tags "frontend; urgente"
+azdevops wi create --type Task --title "Escribir tests" --parent 123
+azdevops wi update 123 --state Active --comment "Empiezo con esto"
+azdevops wi update                                        # eliges el work item y qué cambiar
+azdevops wi delete 123 --yes                              # a la papelera (recuperable)
+```
+
+### Conexiones de servicio (`service-connections`, alias `sc`) y agentes
+
+```bash
+azdevops sc list --type azurerm
+azdevops sc get --name DockerHub
+azdevops sc history --name DockerHub                      # qué pipelines la usaron
+azdevops sc share --name DockerHub --with-project OtroProyecto
+
+azdevops agents pools
+azdevops agents list --pool MiPool                        # estado, versión, trabajo actual y último
+azdevops agents disable --pool MiPool --agent build-01 --yes
+azdevops agents enable --pool MiPool --agent build-01
+```
+
+### Abrir en el navegador
+
+```bash
+azdevops open                       # el proyecto
+azdevops open pipeline MiPipeline
+azdevops open run 4567
+azdevops open variables app-dev
+azdevops open workitem 42 --print   # solo imprime la URL
+```
+
 ### Seguridad (`security`)
 
 ```bash
@@ -127,7 +189,14 @@ azdevops security remove-member --target-group Destino --user ana@empresa.com --
 
 ## Scripting
 
-* `-o json` / `-o table`: los comandos de consulta (`get`, `search-group`, `list-groups`) devuelven JSON por defecto; los listados nuevos (`list`, `runs`, `list-members`) devuelven tabla.
+* `-o table|json|yaml|tsv`: los comandos de consulta (`get`, `search-group`, `list-groups`) devuelven JSON por defecto; los listados devuelven tabla.
+* `--query` (`-q`) aplica una consulta [JMESPath](https://jmespath.org) sobre los datos, igual que `az`:
+
+  ```bash
+  azdevops pipelines list -q "[?latestBuild.result=='failed'].{id:id, nombre:name}" -o yaml
+  azdevops variables list -q "[].[id,name]" -o tsv | while IFS=$'\t' read id name; do ...; done
+  ID=$(azdevops wi create --type Task --title "x" -q id -o tsv)
+  ```
 * Los datos van a *stdout* y los mensajes (✔, !, ✖) a *stderr*: `azdevops variables get -n MiGrupo | jq '.[0].variables'`.
 * Códigos de salida: `0` éxito, `1` error, `130` cancelado por el usuario.
 * `--debug` (o `AZDEVOPS_DEBUG=1`) muestra cada petición HTTP con su código y duración.
@@ -153,7 +222,7 @@ make test    # go test ./...
 make vet
 ```
 
-Estructura: `azdevops/` contiene el cliente y las llamadas a la API (sin E/S de consola), `cmd/` los comandos de cobra, `internal/ui` los prompts y el formateo, e `internal/config` los perfiles. El menú interactivo se genera a partir del árbol de comandos, así que los comandos nuevos aparecen en él automáticamente.
+Estructura: `azdevops/` contiene el cliente y las llamadas a la API (sin E/S de consola), `cmd/` los comandos de cobra, `internal/ui` los prompts y el formateo (tablas, JSON/YAML/TSV, JMESPath), e `internal/config` los perfiles y el llavero. El menú interactivo se genera a partir del árbol de comandos, así que los comandos nuevos aparecen en él automáticamente.
 
 ## Licencia
 

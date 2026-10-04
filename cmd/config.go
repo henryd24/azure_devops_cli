@@ -31,7 +31,7 @@ var configViewCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if out == "json" {
+		if out != "table" {
 			type view struct {
 				Name    string `json:"name"`
 				Current bool   `json:"current"`
@@ -42,9 +42,9 @@ var configViewCmd = &cobra.Command{
 			var views []view
 			for _, n := range cfg.Names() {
 				p := cfg.Profiles[n]
-				views = append(views, view{n, n == cfg.Current, p.Org, p.Project, maskPAT(p.PAT)})
+				views = append(views, view{n, n == cfg.Current, p.Org, p.Project, profilePAT(p)})
 			}
-			return ui.PrintJSON(views)
+			return Print(views)
 		}
 
 		var rows [][]string
@@ -54,7 +54,7 @@ var configViewCmd = &cobra.Command{
 			if n == cfg.Current {
 				marker = "*"
 			}
-			rows = append(rows, []string{marker, n, p.Org, p.Project, maskPAT(p.PAT)})
+			rows = append(rows, []string{marker, n, p.Org, p.Project, profilePAT(p)})
 		}
 		if len(rows) > 0 {
 			ui.Table([]string{"", "perfil", "organización", "proyecto", "pat"}, rows)
@@ -138,6 +138,7 @@ var configDeleteCmd = &cobra.Command{
 			return fmt.Errorf("el perfil '%s' no existe", name)
 		}
 		delete(cfg.Profiles, name)
+		config.DeletePAT(name)
 		if cfg.Current == name {
 			cfg.Current = ""
 		}
@@ -161,6 +162,13 @@ var configPathCmd = &cobra.Command{
 		fmt.Fprintln(os.Stdout, path)
 		return nil
 	},
+}
+
+func profilePAT(p config.Profile) string {
+	if p.InKeyring() {
+		return "(llavero del sistema)"
+	}
+	return maskPAT(p.PAT)
 }
 
 func maskPAT(pat string) string {

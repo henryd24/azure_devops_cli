@@ -40,11 +40,11 @@ var listVariableGroupsCmd = &cobra.Command{
 }
 
 func printGroups(groups []models.VariableGroup, out string) error {
-	if out == "json" {
+	if out != "table" {
 		if groups == nil {
 			groups = []models.VariableGroup{}
 		}
-		return ui.PrintJSON(groups)
+		return cmd.Print(groups)
 	}
 	if len(groups) == 0 {
 		ui.Info("No se encontraron Variable Groups.")

@@ -43,7 +43,18 @@ func ResolveSettings() (config.Profile, string, error) {
 	resolved := config.Profile{
 		Org:     pick(globalFlags.org, "AZURE_ORG", profile.Org),
 		Project: pick(globalFlags.project, "AZURE_PROJECT", profile.Project),
-		PAT:     pick(globalFlags.pat, "AZURE_PAT", profile.PAT),
+	}
+
+	// El PAT del perfil puede estar en el llavero: solo se lee si hace falta.
+	switch {
+	case globalFlags.pat != "":
+		resolved.PAT = globalFlags.pat
+	case os.Getenv("AZURE_PAT") != "" && !(profileName != "" && found):
+		resolved.PAT = os.Getenv("AZURE_PAT")
+	case found:
+		if resolved.PAT, err = profile.GetPAT(name); err != nil {
+			return resolved, name, err
+		}
 	}
 	return resolved, name, nil
 }

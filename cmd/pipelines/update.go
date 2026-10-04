@@ -74,8 +74,8 @@ var updatePipelineCmd = &cobra.Command{
 			return err
 		}
 		ui.Success("Pipeline '%s' (ID: %d) actualizado", cmd.Str(updated.Name), id)
-		if cmd.WantsJSON() {
-			return ui.PrintJSON(updated)
+		if cmd.WantsData() {
+			return cmd.Print(updated)
 		}
 		return nil
 	},

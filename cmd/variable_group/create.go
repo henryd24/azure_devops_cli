@@ -60,8 +60,8 @@ var createVariableGroupCmd = &cobra.Command{
 		}
 		ui.Success("Variable Group '%s' creado (ID: %d) con %d variables", created.Name, created.Id, len(vars))
 		ui.Link(client.VariableGroupWebURL(created.Id))
-		if cmd.WantsJSON() {
-			return ui.PrintJSON(created)
+		if cmd.WantsData() {
+			return cmd.Print(created)
 		}
 		return nil
 	},

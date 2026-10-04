@@ -16,6 +16,8 @@ type Profile struct {
 	Org     string `json:"org"`
 	Project string `json:"project"`
 	PAT     string `json:"pat,omitempty"`
+	// Credential vale "keyring" cuando el PAT está en el llavero del sistema.
+	Credential string `json:"credential,omitempty"`
 }
 
 type Config struct {

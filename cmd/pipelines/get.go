@@ -35,7 +35,7 @@ var getPipelineCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			return ui.PrintJSON(def)
+			return cmd.Print(def)
 		}
 		defs, err := pipeline.GetBuildDefinitionByName(client, name)
 		if err != nil {
@@ -44,7 +44,7 @@ var getPipelineCmd = &cobra.Command{
 		if len(defs) == 0 {
 			return fmt.Errorf("no se encontró ningún pipeline con el nombre '%s'", name)
 		}
-		return ui.PrintJSON(defs)
+		return cmd.Print(defs)
 	},
 }
 

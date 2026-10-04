@@ -127,6 +127,11 @@ func IsNotFound(err error) bool {
 // out (si no es nil) recibe la respuesta decodificada. Un *[]byte o *string en out
 // recibe el cuerpo sin decodificar.
 func (c *Client) Do(method, rawURL string, body, out any) error {
+	return c.DoContentType(method, rawURL, "application/json", body, out)
+}
+
+// DoContentType es como Do pero permite otro Content-Type (p. ej. application/json-patch+json).
+func (c *Client) DoContentType(method, rawURL, contentType string, body, out any) error {
 	var payload []byte
 	if body != nil {
 		var err error
@@ -146,7 +151,7 @@ func (c *Client) Do(method, rawURL string, body, out any) error {
 		req.Header.Set("Accept", "application/json")
 		req.Header.Set("User-Agent", "azdevops-cli/"+Version)
 		if body != nil {
-			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Content-Type", contentType)
 		}
 
 		start := time.Now()
@@ -293,4 +298,11 @@ func (c *Client) debugf(format string, args ...any) {
 	if c.Debug {
 		fmt.Fprintf(os.Stderr, "[debug] "+format+"\n", args...)
 	}
+}
+
+// WithProject devuelve una copia del cliente apuntando a otro proyecto de la misma organización.
+func (c *Client) WithProject(project string) *Client {
+	cc := *c
+	cc.Project = project
+	return &cc
 }

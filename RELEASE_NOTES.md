@@ -10,13 +10,16 @@ Esta versión convierte la CLI en una herramienta interactiva y mucho más compl
 - Confirmaciones antes de operaciones destructivas. Se desactiva con `--no-input`, `AZDEVOPS_NO_INPUT` o `CI`.
 
 ### Perfiles y autenticación
-- `azdevops login` valida las credenciales y las guarda en un perfil (`~/.config/azdevops/config.json`, permisos 0600).
+- `azdevops login` valida las credenciales (incluida la identidad, para no aceptar un PAT inválido en organizaciones con proyectos públicos) y las guarda en un perfil.
+- El PAT se guarda en el **llavero del sistema** (Keychain, Credential Manager, Secret Service) cuando está disponible (`--store auto|keyring|file`).
 - `azdevops config view | use | delete | path` y flags globales `--org`, `--project`, `--pat`, `--profile`.
 
 ### Variable Groups
 - `variables list` (tabla con conteo de variables y secretas).
 - `variables get --id` y `-o table` con valores secretos enmascarados.
 - `variables export` / `variables import` desde `.env` o JSON (`--secret`, `--create`).
+- `variables copy`: copia un grupo (también a otro proyecto) pidiendo los valores secretos o con `--secret-value`; `--merge` para fusionar en uno existente.
+- `variables diff`: compara dos grupos (dev vs prod, o entre proyectos) con `--exit-code` para CI.
 
 ### Pipelines
 - `pipelines list` con el último resultado de cada pipeline.
@@ -28,8 +31,22 @@ Esta versión convierte la CLI en una herramienta interactiva y mucho más compl
 - `security list-groups --search` y `--project-only`.
 - `security list-members` y `security remove-member`.
 
+### Aprobaciones y environments
+- `approvals list | approve | reject` para las aprobaciones de despliegue (con selección múltiple en modo interactivo).
+- `environments list | deployments`.
+
+### Work items (Boards)
+- `workitems list | get | create | update | delete` (alias `wi`): por defecto lista tus work items abiertos; filtros por tipo, estado, texto, área o WIQL; `create --parent`, `--assigned-to @me`, `update --state --comment` y cambio de estado guiado.
+
+### Conexiones de servicio y agentes
+- `service-connections list | get | history | share` (alias `sc`).
+- `agents pools | list | enable | disable`: estado de los agentes, trabajo actual y último resultado.
+
+### Navegador
+- `azdevops open [project|pipeline|run|variables|workitem|repo|approvals|…]`, con `--print` para solo obtener la URL.
+
 ### General
-- Salida `-o json|table`, autocompletado dinámico (nombres de Variable Groups, IDs de pipelines), `--version`, `--debug`.
+- Salida `-o table|json|yaml|tsv` y `--query` con JMESPath (como en `az`), autocompletado dinámico (nombres de Variable Groups, IDs de pipelines), `--version`, `--debug`.
 
 ## 🛠 Mejoras y correcciones
 - Cliente HTTP centralizado: se valida el código de respuesta de **todas** las llamadas (antes muchas `GET` ignoraban errores), mensajes de error legibles de la API, detección de PAT inválido (respuesta 203 de Azure DevOps) y reintentos ante 429/5xx.

@@ -54,11 +54,11 @@ func Bold(s string) string { return styleBold.Render(s) }
 // Status colorea un estado/resultado de ejecución.
 func Status(s string) string {
 	switch strings.ToLower(s) {
-	case "succeeded", "completed":
+	case "succeeded", "completed", "online", "approved":
 		return styleSuccess.Render(s)
-	case "failed", "canceled", "cancelled":
+	case "failed", "canceled", "cancelled", "offline", "rejected":
 		return styleError.Render(s)
-	case "partiallysucceeded", "inprogress", "cancelling", "notstarted", "postponed":
+	case "partiallysucceeded", "inprogress", "cancelling", "notstarted", "postponed", "pending":
 		return styleWarn.Render(s)
 	}
 	return s
