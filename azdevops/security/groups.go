@@ -3,73 +3,74 @@ package security
 import (
 	"azuredevops/azdevops"
 	"azuredevops/models"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/url"
+	"sort"
+	"strings"
 )
 
-func ListGroups(client *azdevops.Client) ([]models.GraphGroup, error) {
-	var allGroups []models.GraphGroup
-	var continuationToken string
-
+// ListGroups lista los grupos de seguridad de la organización (o solo los del
+// proyecto si scopeDescriptor no está vacío). search filtra por nombre sin
+// distinguir mayúsculas.
+func ListGroups(client *azdevops.Client, scopeDescriptor, search string) ([]models.GraphGroup, error) {
+	var all []models.GraphGroup
+	continuation := ""
 	for {
-		url := fmt.Sprintf("https://vssps.dev.azure.com/%s/_apis/graph/groups?api-version=7.1-preview.1", client.Org)
-		if continuationToken != "" {
-			url = fmt.Sprintf("https://vssps.dev.azure.com/%s/_apis/graph/groups?continuationToken=%s&api-version=7.1-preview.1", client.Org, continuationToken)
+		q := url.Values{"api-version": {"7.1-preview.1"}}
+		if scopeDescriptor != "" {
+			q.Set("scopeDescriptor", scopeDescriptor)
 		}
-
-		req, _ := http.NewRequest("GET", url, nil)
-		req.Header.Add("Authorization", client.AuthHeader())
-
-		resp, err := client.HTTP.Do(req)
-		if err != nil {
-			return nil, err
+		if continuation != "" {
+			q.Set("continuationToken", continuation)
 		}
-		defer resp.Body.Close()
-
-		var result struct {
+		var page struct {
 			Value []models.GraphGroup `json:"value"`
 		}
-
-		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-			return nil, fmt.Errorf("error al decodificar una página de grupos: %w", err)
+		headers, err := client.GetWithHeaders(client.VSSPSURL("graph/groups", q), &page)
+		if err != nil {
+			return nil, fmt.Errorf("error al listar los grupos: %w", err)
 		}
-
-		allGroups = append(allGroups, result.Value...)
-
-		token := resp.Header.Get("X-MS-ContinuationToken")
-		if token == "" {
+		all = append(all, page.Value...)
+		continuation = headers.Get("X-MS-ContinuationToken")
+		if continuation == "" {
 			break
 		}
-		continuationToken = token
 	}
 
-	return allGroups, nil
+	if search != "" {
+		needle := strings.ToLower(search)
+		filtered := all[:0]
+		for _, g := range all {
+			if strings.Contains(strings.ToLower(g.DisplayName), needle) || strings.Contains(strings.ToLower(g.PrincipalName), needle) {
+				filtered = append(filtered, g)
+			}
+		}
+		all = filtered
+	}
+	sort.Slice(all, func(i, j int) bool { return all[i].PrincipalName < all[j].PrincipalName })
+	return all, nil
 }
 
-func GetGroupByPrincipalName(client *azdevops.Client, principalName string) (*models.Identity, error) {
-	encodedFilterValue := url.QueryEscape(fmt.Sprintf("[%s]\\%s", client.Project, principalName))
-	url := fmt.Sprintf("https://vssps.dev.azure.com/%s/_apis/identities?searchFilter=General&filterValue=%s&api-version=7.1-preview.1", client.Org, encodedFilterValue)
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Add("Authorization", client.AuthHeader())
-
-	resp, err := client.HTTP.Do(req)
+// GetGroupByPrincipalName busca un grupo del proyecto por nombre (sin el prefijo "[Proyecto]\").
+func GetGroupByPrincipalName(client *azdevops.Client, name string) (*models.Identity, error) {
+	name = strings.TrimPrefix(name, "["+client.Project+"]\\")
+	identities, err := searchIdentities(client, fmt.Sprintf("[%s]\\%s", client.Project, name))
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	if len(identities) == 0 {
+		return nil, fmt.Errorf("no se encontró el grupo '%s'", name)
+	}
+	return &identities[0], nil
+}
 
+func searchIdentities(client *azdevops.Client, filter string) ([]models.Identity, error) {
+	q := url.Values{"searchFilter": {"General"}, "filterValue": {filter}, "api-version": {"7.1-preview.1"}}
 	var result struct {
 		Value []models.Identity `json:"value"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
+	if err := client.Do("GET", client.VSSPSURL("identities", q), nil, &result); err != nil {
+		return nil, fmt.Errorf("error al buscar '%s': %w", filter, err)
 	}
-	if len(result.Value) == 0 {
-		return nil, fmt.Errorf("no se encontró al grupo '%s'", principalName)
-	}
-	fmt.Printf("✔ Grupo encontrado: %s (ID: %s)\n", result.Value[0].DisplayName, result.Value[0].ID)
-
-	return &result.Value[0], nil
+	return result.Value, nil
 }

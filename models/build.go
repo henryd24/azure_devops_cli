@@ -27,6 +27,8 @@ type BuildDefinition struct {
 	Type                      *string                    `json:"type,omitempty"`
 	URI                       *string                    `json:"uri,omitempty"`
 	URL                       *string                    `json:"url,omitempty"`
+	LatestBuild               *Build                     `json:"latestBuild,omitempty"`
+	LatestCompletedBuild      *Build                     `json:"latestCompletedBuild,omitempty"`
 }
 
 type AuthoredBy struct {
@@ -182,22 +184,78 @@ type PipelineTriggerSettings struct {
 }
 
 type BuildRunPayload struct {
-	Definition struct {
-		ID int `json:"id"`
-	} `json:"definition,omitempty"`
+	Resources          *RunResources            `json:"resources,omitempty"`
 	TemplateParameters map[string]string        `json:"templateParameters,omitempty"`
 	Variables          map[string]BuildVariable `json:"variables,omitempty"`
 }
 
+type RunResources struct {
+	Repositories map[string]RunRepository `json:"repositories,omitempty"`
+}
+
+type RunRepository struct {
+	RefName string `json:"refName,omitempty"`
+}
+
 type Build struct {
+	ID            int        `json:"id"`
+	BuildNumber   string     `json:"buildNumber,omitempty"`
+	Status        string     `json:"status"`
+	Result        string     `json:"result"`
+	Reason        string     `json:"reason,omitempty"`
+	SourceBranch  string     `json:"sourceBranch,omitempty"`
+	SourceVersion string     `json:"sourceVersion,omitempty"`
+	QueueTime     *time.Time `json:"queueTime,omitempty"`
+	StartTime     *time.Time `json:"startTime,omitempty"`
+	FinishTime    *time.Time `json:"finishTime,omitempty"`
+	Definition    struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+	} `json:"definition"`
+	RequestedFor struct {
+		DisplayName string `json:"displayName"`
+		UniqueName  string `json:"uniqueName"`
+	} `json:"requestedFor"`
+	Links struct {
+		Web struct {
+			Href string `json:"href"`
+		} `json:"web"`
+	} `json:"_links"`
+}
+
+// PipelineRun es la respuesta de la API de Pipelines al iniciar una ejecución.
+type PipelineRun struct {
 	ID     int    `json:"id"`
-	Status string `json:"status"`
+	Name   string `json:"name"`
+	State  string `json:"state"`
 	Result string `json:"result"`
 	Links  struct {
 		Web struct {
 			Href string `json:"href"`
 		} `json:"web"`
 	} `json:"_links"`
+}
+
+type Timeline struct {
+	Records []TimelineRecord `json:"records"`
+}
+
+type TimelineRecord struct {
+	ID         string `json:"id"`
+	ParentID   string `json:"parentId"`
+	Type       string `json:"type"`
+	Name       string `json:"name"`
+	State      string `json:"state"`
+	Result     string `json:"result"`
+	Order      int    `json:"order"`
+	ErrorCount int    `json:"errorCount"`
+	Log        *struct {
+		ID int `json:"id"`
+	} `json:"log"`
+	Issues []struct {
+		Type    string `json:"type"`
+		Message string `json:"message"`
+	} `json:"issues"`
 }
 
 type BuildVariable struct {

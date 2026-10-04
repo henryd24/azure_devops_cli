@@ -3,73 +3,44 @@ package pipeline
 import (
 	"azuredevops/azdevops"
 	"azuredevops/models"
-	"encoding/json"
 	"fmt"
-	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 )
 
-func DeletePipeline(client *azdevops.Client, pipelineID int, autoconfirmation bool) error {
+// DeletePipeline elimina un pipeline junto con sus retenciones. Devuelve cuántas
+// retenciones se eliminaron.
+func DeletePipeline(client *azdevops.Client, pipelineID int) (int, error) {
 	leases, err := getRetentionLeases(client, pipelineID)
 	if err != nil {
-		return fmt.Errorf("no se pudieron obtener las retenciones: %w", err)
+		return 0, fmt.Errorf("no se pudieron obtener las retenciones: %w", err)
 	}
 
 	if len(leases) > 0 {
-		fmt.Printf("Se encontraron %d retenciones en el pipeline %d. Eliminando...\n", len(leases), pipelineID)
-		leaseIds := ""
+		ids := make([]string, len(leases))
 		for i, lease := range leases {
-			leaseIds += strconv.Itoa(lease.LeaseID)
-			if i < len(leases)-1 {
-				leaseIds += ","
-			}
+			ids[i] = strconv.Itoa(lease.LeaseID)
 		}
-
-		url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/build/retention/leases?ids=%s&api-version=7.1-preview.1", client.Org, client.Project, leaseIds)
-		req, _ := http.NewRequest("DELETE", url, nil)
-		req.Header.Add("Authorization", client.AuthHeader())
-		resp, err := client.HTTP.Do(req)
-		if err != nil {
-			return fmt.Errorf("error al eliminar las retenciones: %w", err)
+		q := url.Values{"ids": {strings.Join(ids, ",")}, "api-version": {"7.1-preview.1"}}
+		if err := client.Do("DELETE", client.ProjectURL("build/retention/leases", q), nil, nil); err != nil {
+			return 0, fmt.Errorf("error al eliminar las retenciones: %w", err)
 		}
-		resp.Body.Close()
-		if resp.StatusCode != http.StatusNoContent {
-			return fmt.Errorf("código de estado inesperado al eliminar retenciones: %d", resp.StatusCode)
-		}
-		fmt.Println("✔ Retenciones eliminadas con éxito.")
-	}
-	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/build/definitions/%d?api-version=7.1", client.Org, client.Project, pipelineID)
-	req, _ := http.NewRequest("DELETE", url, nil)
-	req.Header.Add("Authorization", client.AuthHeader())
-
-	resp, err := client.HTTP.Do(req)
-	if err != nil {
-		return fmt.Errorf("error al eliminar el pipeline: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("código de estado inesperado al eliminar el pipeline: %d", resp.StatusCode)
 	}
 
-	fmt.Printf("✔ Pipeline con ID %d eliminado correctamente.\n", pipelineID)
-	return nil
+	u := client.ProjectURL(fmt.Sprintf("build/definitions/%d", pipelineID), url.Values{"api-version": {"7.1"}})
+	if err := client.Do("DELETE", u, nil, nil); err != nil {
+		return len(leases), fmt.Errorf("error al eliminar el pipeline %d: %w", pipelineID, err)
+	}
+	return len(leases), nil
 }
 
 func getRetentionLeases(client *azdevops.Client, pipelineID int) ([]models.RetentionLease, error) {
-	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/build/retention/leases?definitionId=%d&api-version=7.1-preview.1", client.Org, client.Project, pipelineID)
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Add("Authorization", client.AuthHeader())
-
-	resp, err := client.HTTP.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
+	q := url.Values{"definitionId": {strconv.Itoa(pipelineID)}, "api-version": {"7.1-preview.1"}}
 	var result struct {
 		Value []models.RetentionLease `json:"value"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := client.Do("GET", client.ProjectURL("build/retention/leases", q), nil, &result); err != nil {
 		return nil, err
 	}
 	return result.Value, nil

@@ -3,61 +3,59 @@ package variable_group
 import (
 	"azuredevops/azdevops"
 	"azuredevops/models"
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"maps"
-	"net/http"
+	"net/url"
 )
 
-func AddVariablesToGroup(client *azdevops.Client, names []string, variables map[string]models.VariableVal, description string) (bool, error) {
-	for _, name := range names {
-		groups, err := GetVariableGroupByName(client, name)
-		if err != nil {
-			return false, fmt.Errorf("error al obtener el grupo de variables: %w", err)
-		}
-		if len(groups) == 0 {
-			fmt.Printf("No se encontró el Variable Group con nombre '%s'\n", name)
+// UpdateVariableGroup reemplaza el contenido de un Variable Group con el recibido.
+// Las variables secretas sin valor conservan el valor que ya tenían en Azure DevOps.
+func UpdateVariableGroup(client *azdevops.Client, group models.VariableGroup) (*models.VariableGroup, error) {
+	payload := models.VariableGroupById{
+		ID:                             group.Id,
+		Name:                           group.Name,
+		Type:                           group.Type,
+		Project:                        client.Project,
+		Variables:                      group.Variables,
+		VariableGroupProjectReferences: models.ConstructVariableGroupProjectReferences(client.Project, group.Name, group.Description),
+	}
+	var updated models.VariableGroup
+	u := client.ProjectURL(fmt.Sprintf("distributedtask/variablegroups/%d", group.Id), url.Values{"api-version": {apiVersion}})
+	if err := client.Do("PUT", u, payload, &updated); err != nil {
+		return nil, fmt.Errorf("error al actualizar el Variable Group '%s': %w", group.Name, err)
+	}
+	return &updated, nil
+}
+
+// AddVariablesToGroup agrega o sobrescribe variables (y opcionalmente la descripción) de un grupo.
+func AddVariablesToGroup(client *azdevops.Client, group models.VariableGroup, variables map[string]models.VariableVal, description string) (*models.VariableGroup, error) {
+	if description != "" {
+		group.Description = description
+	}
+	merged := make(map[string]models.VariableVal, len(group.Variables)+len(variables))
+	maps.Copy(merged, group.Variables)
+	maps.Copy(merged, variables)
+	group.Variables = merged
+	return UpdateVariableGroup(client, group)
+}
+
+// RemoveVariablesFromGroup elimina las variables indicadas de un grupo. Devuelve las
+// variables que no existían en el grupo.
+func RemoveVariablesFromGroup(client *azdevops.Client, group models.VariableGroup, keys []string) (missing []string, err error) {
+	remaining := maps.Clone(group.Variables)
+	removed := 0
+	for _, key := range keys {
+		if _, ok := remaining[key]; !ok {
+			missing = append(missing, key)
 			continue
 		}
-		for _, group := range groups {
-			url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/distributedtask/variablegroups/%d?api-version=7.1-preview.2", client.Org, client.Project, group.Id)
-			if description != "" {
-				group.Description = description
-			}
-			mergedVars := make(map[string]models.VariableVal)
-			maps.Copy(mergedVars, group.Variables)
-			maps.Copy(mergedVars, variables)
-			groupPayload := models.VariableGroupById{
-				ID:                             group.Id,
-				Name:                           group.Name,
-				Type:                           group.Type,
-				Project:                        client.Project,
-				Variables:                      mergedVars,
-				VariableGroupProjectReferences: models.ConstructVariableGroupProjectReferences(client.Project, group.Name, group.Description),
-			}
-			payload, _ := json.Marshal(groupPayload)
-
-			req, _ := http.NewRequest("PUT", url, bytes.NewBuffer(payload))
-			req.Header.Add("Authorization", client.AuthHeader())
-			req.Header.Add("Content-Type", "application/json")
-
-			resp, err := client.HTTP.Do(req)
-
-			if err != nil {
-				return false, err
-			}
-			defer resp.Body.Close()
-
-			if resp.StatusCode != http.StatusOK {
-				body, _ := io.ReadAll(resp.Body)
-				return false, fmt.Errorf("AddVariablesToGroup error: %s", string(body))
-			}
-
-			fmt.Printf("✔ Variables agregadas satisfactoriamente al grupo: %d\n", group.Id)
-			fmt.Printf("🔗 https://dev.azure.com/%s/%s/_library?itemType=variableGroups&view=VariableGroupView&variableGroupId=%d\n", client.Org, client.Project, group.Id)
-		}
+		delete(remaining, key)
+		removed++
 	}
-	return true, nil
+	if removed == 0 {
+		return missing, nil
+	}
+	group.Variables = remaining
+	_, err = UpdateVariableGroup(client, group)
+	return missing, err
 }

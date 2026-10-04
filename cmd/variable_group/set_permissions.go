@@ -2,76 +2,118 @@ package variable_group
 
 import (
 	"fmt"
-	"log"
+	"strings"
 
-	"azuredevops/azdevops"
+	"azuredevops/azdevops/organization"
 	"azuredevops/azdevops/security"
 	vg "azuredevops/azdevops/variable_group"
 	"azuredevops/cmd"
+	"azuredevops/internal/ui"
+	"azuredevops/models"
 
 	"github.com/spf13/cobra"
 )
 
 var setPermissionsCmd = &cobra.Command{
 	Use:   "set-permissions",
-	Short: "Asigna permisos a uno o más Variable Groups.",
-	Run: func(cmd *cobra.Command, args []string) {
-		variableNames, _ := cmd.Flags().GetStringSlice("variable")
-		users, _ := cmd.Flags().GetStringSlice("user")
-		groups, _ := cmd.Flags().GetStringSlice("group")
-		role, _ := cmd.Flags().GetString("role")
-
-		if len(variableNames) == 0 || (len(users) == 0 && len(groups) == 0) || role == "" {
-			log.Fatal("Los flags --variable y --role son obligatorios. Debes proporcionar al menos un --user o --group.")
+	Short: "Asigna un rol a usuarios/grupos en uno o más Variable Groups",
+	Example: `  azdevops variables set-permissions --variable MiGrupo --user ana@empresa.com --group Devs --role Reader
+  azdevops variables set-permissions   # modo guiado`,
+	RunE: func(c *cobra.Command, args []string) error {
+		client, err := cmd.NewClient()
+		if err != nil {
+			return err
+		}
+		names, err := cmd.ResolveSliceFlag(c, "variable", func() ([]string, error) {
+			return cmd.PickVariableGroupNames(client, "Variable Groups")
+		})
+		if err != nil {
+			return err
+		}
+		users, _ := c.Flags().GetStringSlice("user")
+		groups, _ := c.Flags().GetStringSlice("group")
+		if len(users) == 0 && len(groups) == 0 {
+			if !ui.Interactive() {
+				return fmt.Errorf("debes proporcionar al menos un --user o --group")
+			}
+			u, err := ui.Input("Usuarios (emails separados por coma)", "Opcional", "", nil)
+			if err != nil {
+				return err
+			}
+			g, err := ui.Input("Grupos de seguridad del proyecto (separados por coma)", "Sin el prefijo [Proyecto]\\ · Opcional", "", nil)
+			if err != nil {
+				return err
+			}
+			users, groups = splitList(u), splitList(g)
+			if len(users) == 0 && len(groups) == 0 {
+				return fmt.Errorf("debes indicar al menos un usuario o grupo")
+			}
+		}
+		role, err := cmd.ResolveStringFlag(c, "role", func() (string, error) {
+			opts := make([]ui.Option[string], len(vg.ValidRoles))
+			for i, r := range vg.ValidRoles {
+				opts[i] = ui.Option[string]{Label: r, Value: r}
+			}
+			return ui.Select("Rol", opts)
+		})
+		if err != nil {
+			return err
+		}
+		if role, err = vg.NormalizeRole(role); err != nil {
+			return err
 		}
 
-		client := azdevops.GetClientFromEnv()
-
+		ui.Info("Buscando identidades...")
 		var identityIDs []string
-
-		fmt.Println("Buscando identidades de usuarios y grupos...")
-		for _, principalName := range users {
-			identity, err := security.GetUserByPrincipalName(client, principalName)
+		for _, u := range users {
+			id, err := security.GetUserByPrincipalName(client, u)
 			if err != nil {
-				log.Fatalf("  └─ ❌ Error fatal: No se pudo encontrar a '%s'. La operación se ha cancelado. Detalles: %v", principalName, err)
+				return fmt.Errorf("operación cancelada: %w", err)
 			}
-			identityIDs = append(identityIDs, identity.ID)
-			fmt.Printf("  └─ ✔️ Encontrado: %s\n", principalName)
+			identityIDs = append(identityIDs, id.ID)
+			ui.Success("Usuario: %s", u)
+		}
+		for _, g := range groups {
+			id, err := security.GetGroupByPrincipalName(client, g)
+			if err != nil {
+				return fmt.Errorf("operación cancelada: %w", err)
+			}
+			identityIDs = append(identityIDs, id.ID)
+			ui.Success("Grupo: %s", g)
 		}
 
-		for _, group := range groups {
-			identity, err := security.GetGroupByPrincipalName(client, group)
-			if err != nil {
-				log.Fatalf("  └─ ❌ Error fatal: No se pudo encontrar al grupo '%s'. La operación se ha cancelado. Detalles: %v", group, err)
-			}
-			identityIDs = append(identityIDs, identity.ID)
-			fmt.Printf("  └─ ✔️ Encontrado: %s\n", group)
+		project, err := organization.GetProject(client)
+		if err != nil {
+			return err
 		}
-
-		fmt.Println("\nAplicando permisos a los Variable Groups...")
-		for _, variableName := range variableNames {
-			vgs, err := vg.GetVariableGroupByName(client, variableName)
-			if err != nil || len(vgs) == 0 {
-				log.Printf("  └─ ❌ Error al buscar el Variable Group '%s'. Saltando...\n", variableName)
-				continue
+		return forEachGroup(client, names, func(g models.VariableGroup) error {
+			if err := vg.SetPermissions(client, project.ID, g.Id, identityIDs, role); err != nil {
+				return err
 			}
-
-			variableGroup := vgs[0]
-
-			err = vg.SetPermissionsOptimized(client, &variableGroup, identityIDs, role)
-			if err != nil {
-				log.Printf("  └─ ❌ Error al asignar permisos en '%s': %v\n", variableName, err)
-			} else {
-				fmt.Printf("  └─ ✔️ Permisos asignados correctamente en '%s'.\n", variableName)
-			}
-		}
+			ui.Success("Rol %s asignado en '%s'", role, g.Name)
+			return nil
+		})
 	},
+}
+
+func splitList(s string) []string {
+	var out []string
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func init() {
 	setPermissionsCmd.Flags().StringSliceP("variable", "v", nil, "Nombre del Variable Group (se puede repetir)")
-	setPermissionsCmd.Flags().StringSliceP("user", "u", nil, "Email del usuario al que se le asignará el permiso (se puede repetir)")
-	setPermissionsCmd.Flags().StringSliceP("group", "g", nil, "Nombre del grupo al que se le asignará el permiso (se puede repetir)")
-	setPermissionsCmd.Flags().StringP("role", "r", "", "Rol a asignar: Reader, User, o Administrator")
+	setPermissionsCmd.Flags().StringSliceP("user", "u", nil, "Email del usuario (se puede repetir)")
+	setPermissionsCmd.Flags().StringSliceP("group", "g", nil, "Grupo de seguridad del proyecto, sin el prefijo [Proyecto]\\ (se puede repetir)")
+	setPermissionsCmd.Flags().StringP("role", "r", "", "Rol a asignar: Reader, User o Administrator")
+	_ = setPermissionsCmd.RegisterFlagCompletionFunc("variable", cmd.CompleteVariableGroups)
+	_ = setPermissionsCmd.RegisterFlagCompletionFunc("role", func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+		return vg.ValidRoles, cobra.ShellCompDirectiveNoFileComp
+	})
 	cmd.Variables.AddCommand(setPermissionsCmd)
 }

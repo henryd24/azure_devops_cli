@@ -1,0 +1,85 @@
+{
+  "manifestVersion": 1,
+  "id": "{{.Project.ID}}",
+  "name": "{{j .Project.Name}}",
+  "description": "{{j .Project.Description}}",
+  "publisher": "{{.Project.Publisher}}",
+  "version": "{{.Project.Version}}",
+  "public": false,
+  "categories": ["{{.Project.Category}}"],
+  "content": {
+    "details": {
+      "path": "README.md"
+    }{{if .Project.LicenseID | ne "UNLICENSED"}},
+    "license": {
+      "path": "LICENSE"
+    }{{end}}
+  },{{if .Project.Repository}}
+  "repository": {
+    "type": "git",
+    "uri": "{{.Project.Repository}}"
+  },{{end}}
+  "targets": [
+    {
+      "id": "Microsoft.VisualStudio.Services.Cloud"
+    }
+  ],
+  "contributions": [{{range $i, $t := .Tasks}}{{if $i}},{{end}}
+    {
+      "id": "{{$t.Slug}}-task",
+      "type": "ms.vss-distributed-task.task",
+      "targets": ["ms.vss-distributed-task.tasks"],
+      "properties": {
+        "name": "tasks/{{$t.Slug}}"
+      }
+    }{{end}}{{range .Endpoints}},
+    {
+      "id": "{{.ID}}",
+      "description": "{{j .Description}}",
+      "type": "ms.vss-endpoint.service-endpoint-type",
+      "targets": ["ms.vss-endpoint.endpoint-types"],
+      "properties": {
+        "name": "{{.Name}}",
+        "displayName": "{{j .DisplayName}}",
+        "icon": "images/{{.Icon}}",
+        "url": {
+          "displayName": "Server Url",
+          "helpText": "Url of the service to connect to.",
+          "value": "{{.URL}}",
+          "isVisible": "true"
+        },
+        "authenticationSchemes": [
+          {
+            "type": "ms.vss-endpoint.endpoint-auth-scheme-token",
+            "inputDescriptors": [
+              {
+                "id": "apitoken",
+                "name": "Token",
+                "description": "Token used to authenticate against the service",
+                "inputMode": "passwordbox",
+                "isConfidential": true,
+                "validation": {
+                  "isRequired": true,
+                  "dataType": "string"
+                }
+              }
+            ]
+          }
+        ],
+        "helpMarkDown": ""
+      }
+    }{{end}}
+  ],
+  "files": [
+    {
+      "path": "tasks"
+    },
+    {
+      "path": "images",
+      "addressable": true
+    }
+  ],
+  "icons": {
+    "default": "images/extension-icon.png"
+  }
+}

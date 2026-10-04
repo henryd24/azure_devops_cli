@@ -3,93 +3,73 @@ package pipeline
 import (
 	"azuredevops/azdevops"
 	"azuredevops/models"
-	"bytes"
-
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
+	"net/url"
+	"strings"
 	"time"
 )
 
-func RunPipeline(client *azdevops.Client, pipelineID int, wait bool, params map[string]string, vars map[string]models.BuildVariable) (*models.Build, error) {
-	payloadData := models.BuildRunPayload{}
-
-	if len(params) > 0 {
-		payloadData.TemplateParameters = params
-	}
-	if len(vars) > 0 {
-		payloadData.Variables = vars
-	}
-
-	payload, err := json.Marshal(payloadData)
-	if err != nil {
-		return nil, fmt.Errorf("error al serializar el payload: %w", err)
-	}
-
-	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/pipelines/%d/runs?api-version=7.1", client.Org, client.Project, pipelineID)
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(payload))
-	req.Header.Set("Authorization", client.AuthHeader())
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.HTTP.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("la solicitud para iniciar el build falló: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("error al iniciar el build: %s", string(body))
-	}
-
-	var buildRun models.Build
-	if err := json.NewDecoder(resp.Body).Decode(&buildRun); err != nil {
-		return nil, fmt.Errorf("error al decodificar la respuesta del build: %w", err)
-	}
-
-	fmt.Printf("✔ Pipeline iniciado con éxito (Build ID: %d)\n", buildRun.ID)
-	fmt.Printf("🔗 URL de la ejecución: %s\n", buildRun.Links.Web.Href)
-
-	if !wait {
-		return &buildRun, nil
-	}
-
-	fmt.Print("Esperando a que el pipeline finalice...")
-	for {
-		time.Sleep(10 * time.Second)
-
-		latestBuild, err := GetBuildByID(client, buildRun.ID)
-		if err != nil {
-			fmt.Println("\nError al obtener el estado del build:", err)
-			break
-		}
-
-		if latestBuild.Status == "completed" {
-			fmt.Println("\n✔ Pipeline finalizado.")
-			fmt.Printf("Resultado: %s\n", latestBuild.Result)
-			return latestBuild, nil
-		}
-		fmt.Print(".")
-	}
-
-	return &buildRun, nil
+type RunOptions struct {
+	Branch string
+	Params map[string]string
+	Vars   map[string]models.BuildVariable
 }
 
-func GetBuildByID(client *azdevops.Client, buildID int) (*models.Build, error) {
-	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/build/builds/%d?api-version=7.1", client.Org, client.Project, buildID)
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Add("Authorization", client.AuthHeader())
-
-	resp, err := client.HTTP.Do(req)
-	if err != nil {
-		return nil, err
+// RunPipeline inicia una ejecución del pipeline.
+func RunPipeline(client *azdevops.Client, pipelineID int, opts RunOptions) (*models.PipelineRun, error) {
+	payload := models.BuildRunPayload{}
+	if len(opts.Params) > 0 {
+		payload.TemplateParameters = opts.Params
 	}
-	defer resp.Body.Close()
-
-	var build models.Build
-	if err := json.NewDecoder(resp.Body).Decode(&build); err != nil {
-		return nil, fmt.Errorf("error al decodificar la definición: %w", err)
+	if len(opts.Vars) > 0 {
+		payload.Variables = opts.Vars
 	}
-	return &build, nil
+	if opts.Branch != "" {
+		ref := opts.Branch
+		if !strings.HasPrefix(ref, "refs/") {
+			ref = "refs/heads/" + ref
+		}
+		payload.Resources = &models.RunResources{
+			Repositories: map[string]models.RunRepository{"self": {RefName: ref}},
+		}
+	}
+
+	var run models.PipelineRun
+	u := client.ProjectURL(fmt.Sprintf("pipelines/%d/runs", pipelineID), url.Values{"api-version": {"7.1"}})
+	if err := client.Do("POST", u, payload, &run); err != nil {
+		return nil, fmt.Errorf("error al iniciar el pipeline %d: %w", pipelineID, err)
+	}
+	return &run, nil
+}
+
+// WaitForBuild consulta el build cada interval hasta que termina o se agota timeout
+// (0 = sin límite). onUpdate (opcional) se invoca en cada consulta.
+func WaitForBuild(client *azdevops.Client, buildID int, interval, timeout time.Duration, onUpdate func(*models.Build)) (*models.Build, error) {
+	var deadline time.Time
+	if timeout > 0 {
+		deadline = time.Now().Add(timeout)
+	}
+	failures := 0
+	for {
+		build, err := GetBuildByID(client, buildID)
+		if err != nil {
+			// Toleramos errores transitorios aislados mientras esperamos.
+			failures++
+			if failures >= 5 {
+				return nil, fmt.Errorf("no se pudo obtener el estado del build %d: %w", buildID, err)
+			}
+		} else {
+			failures = 0
+			if onUpdate != nil {
+				onUpdate(build)
+			}
+			if build.Status == "completed" {
+				return build, nil
+			}
+		}
+		if !deadline.IsZero() && time.Now().After(deadline) {
+			return build, fmt.Errorf("se agotó el tiempo de espera (%s) para el build %d", timeout, buildID)
+		}
+		time.Sleep(interval)
+	}
 }

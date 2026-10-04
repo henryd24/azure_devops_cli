@@ -1,80 +1,75 @@
 package variable_group
 
 import (
-	"log"
-	"strings"
+	"fmt"
 
-	"azuredevops/azdevops"
 	vg "azuredevops/azdevops/variable_group"
 	"azuredevops/cmd"
+	"azuredevops/internal/ui"
 	"azuredevops/models"
+
 	"github.com/spf13/cobra"
 )
 
 var createVariableGroupCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Crea un nuevo Variable Group",
-	Run: func(cmd *cobra.Command, args []string) {
-		groupName, err := cmd.Flags().GetString("name")
-		description, _ := cmd.Flags().GetString("description")
+	Example: `  azdevops variables create --name MiGrupo -d "Descripción" -v clave1=valor1 -v secret:token=abc
+  azdevops variables create   # modo guiado`,
+	RunE: func(c *cobra.Command, args []string) error {
+		name, err := cmd.ResolveStringFlag(c, "name", func() (string, error) {
+			return ui.Input("Nombre del Variable Group", "", "", ui.Required)
+		})
 		if err != nil {
-			log.Fatalf("Error al obtener el nombre del grupo: %v", err)
+			return err
+		}
+		description, _ := c.Flags().GetString("description")
+		entries, _ := c.Flags().GetStringSlice("variables")
+
+		var vars map[string]models.VariableVal
+		if len(entries) == 0 && ui.Interactive() {
+			if description == "" {
+				if description, err = ui.Input("Descripción (opcional)", "", "", nil); err != nil {
+					return err
+				}
+			}
+			if vars, err = cmd.PromptVariables(); err != nil {
+				return err
+			}
+		} else if vars, err = cmd.ParseVariables(entries); err != nil {
+			return err
 		}
 
-		newVariables, err := cmd.Flags().GetStringSlice("variables")
+		client, err := cmd.NewClient()
 		if err != nil {
-			log.Fatalf("Error al obtener las variables: %v", err)
+			return err
 		}
-
-		if groupName == "" {
-			log.Fatal("Debes proporcionar el nombre del grupo con --name")
+		existing, err := vg.GetVariableGroupByName(client, name)
+		if err != nil {
+			return err
 		}
-
-		client := azdevops.GetClientFromEnv()
-		newVariablesMap := make(map[string]models.VariableVal)
-
-		for _, v := range newVariables {
-			isSecret := false
-			variable := v
-
-			if strings.HasPrefix(v, "secret:") {
-				isSecret = true
-				variable = strings.TrimPrefix(v, "secret:")
-			}
-
-			parts := strings.SplitN(variable, "=", 2)
-			if len(parts) != 2 {
-				log.Fatalf("Formato de variable inválido: %s. Usa clave=valor o secret:clave=valor", v)
-			}
-
-			key := strings.TrimSpace(parts[0])
-			value := strings.TrimSpace(parts[1])
-
-			if key == "" {
-				log.Fatalf("La clave no puede estar vacía en: %s", v)
-			}
-
-			newVariablesMap[key] = models.VariableVal{
-				Value:    value,
-				IsSecret: isSecret,
+		for _, g := range existing {
+			if g.Name == name {
+				return fmt.Errorf("el Variable Group '%s' ya existe (ID %d). Usa 'variables update' para modificarlo", name, g.Id)
 			}
 		}
-		getVariableGroup, err := vg.GetVariableGroupByName(client, groupName)
-		if err == nil && len(getVariableGroup) > 0 {
-			log.Fatalf("El Variable Group '%s' ya existe. Usa otro nombre.", groupName)
-		} else if err != nil && !strings.Contains(err.Error(), "Variable group not found") {
-			log.Fatalf("Error al obtener el Variable Group: %v", err)
+
+		created, err := vg.CreateVariableGroup(client, name, vars, description)
+		if err != nil {
+			return err
 		}
-		_, outputErr := vg.CreateVariableGroup(client, groupName, newVariablesMap, description)
-		if outputErr != nil {
-			log.Fatalf("Error al agregar variables al grupo: %v", outputErr)
+		ui.Success("Variable Group '%s' creado (ID: %d) con %d variables", created.Name, created.Id, len(vars))
+		ui.Link(client.VariableGroupWebURL(created.Id))
+		if cmd.WantsData() {
+			return cmd.Print(created)
 		}
+		return nil
 	},
 }
 
 func init() {
-	createVariableGroupCmd.Flags().StringP("name", "n", "", "Name of the variable group")
-	createVariableGroupCmd.Flags().StringSliceP("variables", "v", []string{}, "Variables in the format key=value or secret:key=value")
-	createVariableGroupCmd.Flags().StringP("description", "d", "", "Description of the variable group (optional)")
+	createVariableGroupCmd.Flags().StringP("name", "n", "", "Nombre del Variable Group")
+	createVariableGroupCmd.Flags().StringSliceP("variables", "v", nil, "Variables en formato clave=valor o secret:clave=valor (se puede repetir)")
+	createVariableGroupCmd.Flags().StringP("description", "d", "", "Descripción del Variable Group (opcional)")
 	cmd.Variables.AddCommand(createVariableGroupCmd)
 }

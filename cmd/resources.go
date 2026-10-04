@@ -5,20 +5,23 @@ import (
 )
 
 var Variables = &cobra.Command{
-	Use:   "variables",
-	Short: "Comandos para trabajar con variables",
-	Long:  "Comandos para trabajar con variables en Azure DevOps, como Variable Groups.",
+	Use:     "variables",
+	Aliases: []string{"vg", "variable-groups"},
+	Short:   "Gestiona Variable Groups",
+	Long:    "Comandos para trabajar con variables en Azure DevOps, como Variable Groups.",
 }
 
 var Pipelines = &cobra.Command{
-	Use:   "pipelines",
-	Short: "Comandos para trabajar con pipelines",
-	Long:  "Comandos para trabajar con pipelines en Azure DevOps, incluyendo la creación, actualización y eliminación de pipelines.",
+	Use:     "pipelines",
+	Aliases: []string{"pipeline", "pl"},
+	Short:   "Gestiona y ejecuta pipelines",
+	Long:    "Comandos para trabajar con pipelines en Azure DevOps: crear, actualizar, eliminar, ejecutar y seguir sus ejecuciones.",
 }
 
 var Security = &cobra.Command{
-	Use:   "security",
-	Short: "Comandos para gestionar grupos y permisos de seguridad",
+	Use:     "security",
+	Aliases: []string{"sec"},
+	Short:   "Gestiona grupos de seguridad y membresías",
 }
 
 func init() {

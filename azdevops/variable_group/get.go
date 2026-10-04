@@ -3,45 +3,43 @@ package variable_group
 import (
 	"azuredevops/azdevops"
 	"azuredevops/models"
-	"encoding/json"
 	"fmt"
-	"net/http"
+	"net/url"
+	"sort"
 )
 
-func GetVariableGroupByName(client *azdevops.Client, name string) ([]models.VariableGroup, error) {
-	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/distributedtask/variablegroups?api-version=7.1-preview.2&groupName=%s", client.Org, client.Project, name)
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Add("Authorization", client.AuthHeader())
+const apiVersion = "7.1-preview.2"
 
-	resp, err := client.HTTP.Do(req)
-	if err != nil {
-		return nil, err
+// ListVariableGroups lista los Variable Groups del proyecto. filter admite comodines
+// (p. ej. "app-*"); vacío devuelve todos.
+func ListVariableGroups(client *azdevops.Client, filter string) ([]models.VariableGroup, error) {
+	q := url.Values{"api-version": {apiVersion}}
+	if filter != "" {
+		q.Set("groupName", filter)
 	}
-	defer resp.Body.Close()
-
 	var result struct {
 		Value []models.VariableGroup `json:"value"`
 	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
+	if err := client.Do("GET", client.ProjectURL("distributedtask/variablegroups", q), nil, &result); err != nil {
+		return nil, fmt.Errorf("error al listar los Variable Groups: %w", err)
 	}
+	sort.Slice(result.Value, func(i, j int) bool { return result.Value[i].Name < result.Value[j].Name })
 	return result.Value, nil
 }
 
-func GetVariableGroupById(client *azdevops.Client, id int) (*models.VariableGroup, error) {
-	url := fmt.Sprintf("https://dev.azure.com/%s/%s/_apis/distributedtask/variablegroups/%d?api-version=7.1-preview.2", client.Org, client.Project, id)
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Add("Authorization", client.AuthHeader())
-
-	resp, err := client.HTTP.Do(req)
-	if err != nil {
-		return nil, err
+// GetVariableGroupByName busca Variable Groups por nombre (admite comodines).
+func GetVariableGroupByName(client *azdevops.Client, name string) ([]models.VariableGroup, error) {
+	if name == "" {
+		return nil, fmt.Errorf("el nombre del Variable Group no puede estar vacío")
 	}
-	defer resp.Body.Close()
+	return ListVariableGroups(client, name)
+}
 
+// GetVariableGroupById obtiene un Variable Group por su ID.
+func GetVariableGroupById(client *azdevops.Client, id int) (*models.VariableGroup, error) {
 	var result models.VariableGroup
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	u := client.ProjectURL(fmt.Sprintf("distributedtask/variablegroups/%d", id), url.Values{"api-version": {apiVersion}})
+	if err := client.Do("GET", u, nil, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil

@@ -1,0 +1,28 @@
+import * as tl from "azure-pipelines-task-lib";
+import { getInputs } from "./utils/inputs";
+
+/**
+ * Punto de entrada de la tarea "{{.Task.FriendlyName}}".
+ */
+async function run(): Promise<void> {
+  try {
+    const inputs = getInputs();
+    if (inputs.verbose) {
+      tl.debug(`Inputs: ${JSON.stringify({ ...inputs, token: inputs.token ? "***" : undefined })}`);
+    }
+{{- if .Task.Endpoint}}
+
+    if (inputs.serviceUrl) {
+      console.log(`Using service connection: ${inputs.serviceUrl}`);
+    }
+{{- end}}
+
+    console.log(inputs.message);
+    tl.setVariable("result", inputs.message, false, true);
+    tl.setResult(tl.TaskResult.Succeeded, "Done");
+  } catch (err) {
+    tl.setResult(tl.TaskResult.Failed, err instanceof Error ? err.message : String(err));
+  }
+}
+
+run();
