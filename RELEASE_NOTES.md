@@ -42,6 +42,10 @@ Esta versión convierte la CLI en una herramienta interactiva y mucho más compl
 - `service-connections list | get | history | share` (alias `sc`).
 - `agents pools | list | enable | disable`: estado de los agentes, trabajo actual y último resultado.
 
+### Archivos seguros
+- `securefiles list | get | upload | delete | authorize | set-role` (alias `sf`).
+- `securefiles replace`: reemplaza el contenido conservando nombre, propiedades, pipelines autorizados, roles asignados, herencia de permisos y aprobaciones/checks, con `--dry-run`, `--keep-old` y reversión automática si algo falla.
+
 ### Navegador
 - `azdevops open [project|pipeline|run|variables|workitem|repo|approvals|…]`, con `--print` para solo obtener la URL.
 

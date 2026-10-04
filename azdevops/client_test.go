@@ -115,3 +115,20 @@ func TestDoDoesNotRetryPOSTOn500(t *testing.T) {
 		t.Errorf("un POST no debe reintentarse ante 500 (llamadas = %d)", calls.Load())
 	}
 }
+
+func TestDoContentTypeRawBody(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if ct := r.Header.Get("Content-Type"); ct != "application/octet-stream" {
+			t.Errorf("Content-Type = %s", ct)
+		}
+		b := make([]byte, 10)
+		n, _ := r.Body.Read(b)
+		if string(b[:n]) != "\x00bin" {
+			t.Errorf("body = %q", b[:n])
+		}
+		w.Write([]byte(`{}`))
+	})
+	if err := c.DoContentType("POST", c.ProjectURL("x", nil), "application/octet-stream", []byte("\x00bin"), nil); err != nil {
+		t.Fatal(err)
+	}
+}

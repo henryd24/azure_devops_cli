@@ -11,6 +11,7 @@ Herramienta de línea de comandos (CLI) no oficial para interactuar con Azure De
 * **Aprobaciones y environments**: ver aprobaciones de despliegue pendientes y aprobarlas o rechazarlas; listar environments y su historial de despliegues.
 * **Work items (Boards)**: listar los tuyos, consultar, crear, cambiar estado, comentar, reasignar y eliminar.
 * **Conexiones de servicio y agentes**: listar, ver qué pipelines usan una conexión, compartirla con otros proyectos; ver pools y agentes (en línea, trabajo actual) y habilitarlos o deshabilitarlos.
+* **Archivos seguros**: listar, ver quién y qué pipelines pueden usarlos, subir, autorizar pipelines, asignar roles, eliminar y **reemplazar el contenido conservando permisos, roles y aprobaciones**.
 * **`azdevops open`**: abre en el navegador el proyecto, un pipeline, una ejecución, un work item, etc.
 * **Seguridad**: listar y buscar grupos, ver miembros, agregar y quitar miembros.
 * **Salida** en tabla, JSON, YAML o TSV (`-o`), con filtros **JMESPath** (`--query`, igual que en `az`). Los mensajes de estado van a *stderr* y los datos a *stdout*.
@@ -165,6 +166,23 @@ azdevops agents list --pool MiPool                        # estado, versión, tr
 azdevops agents disable --pool MiPool --agent build-01 --yes
 azdevops agents enable --pool MiPool --agent build-01
 ```
+
+### Archivos seguros (`securefiles`, alias `sf`)
+
+```bash
+azdevops sf list
+azdevops sf get --name cert.pfx                           # pipelines autorizados, roles y aprobaciones
+azdevops sf upload ./cert.pfx --pipeline 12 --pipeline 15
+azdevops sf upload ./npmrc --authorize-all-pipelines
+azdevops sf authorize --name cert.pfx --pipeline 20       # --revoke para quitar, --all-pipelines=true|false
+azdevops sf set-role --name cert.pfx --group Devs --role User
+azdevops sf delete --name cert.pfx --yes
+
+azdevops sf replace ./cert-2026.pfx --name cert.pfx --dry-run   # muestra qué se conservará
+azdevops sf replace ./cert-2026.pfx --name cert.pfx --yes
+```
+
+`replace` actualiza el contenido de un archivo seguro (por ejemplo, un certificado renovado) conservando su nombre, propiedades, pipelines autorizados (o el acceso abierto), roles asignados, herencia de permisos y aprobaciones/checks. Como Azure DevOps no permite cambiar el contenido ni tener dos archivos con el mismo nombre, renombra el actual, sube el nuevo, copia la configuración y elimina el anterior (`--keep-old` lo conserva renombrado). Si algo falla, revierte los cambios. El archivo nuevo tiene otro ID: los pipelines YAML lo referencian por nombre y siguen funcionando.
 
 ### Abrir en el navegador
 

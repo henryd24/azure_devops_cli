@@ -131,9 +131,12 @@ func (c *Client) Do(method, rawURL string, body, out any) error {
 }
 
 // DoContentType es como Do pero permite otro Content-Type (p. ej. application/json-patch+json).
+// Si body es []byte se envía tal cual (p. ej. un archivo con application/octet-stream).
 func (c *Client) DoContentType(method, rawURL, contentType string, body, out any) error {
 	var payload []byte
-	if body != nil {
+	if raw, ok := body.([]byte); ok {
+		payload = raw
+	} else if body != nil {
 		var err error
 		if payload, err = json.Marshal(body); err != nil {
 			return fmt.Errorf("error al serializar el payload: %w", err)

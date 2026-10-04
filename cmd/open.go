@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var openTargets = []string{"project", "pipeline", "run", "variables", "workitem", "repo", "approvals", "environments", "service-connections", "boards"}
+var openTargets = []string{"project", "pipeline", "run", "variables", "workitem", "repo", "approvals", "environments", "service-connections", "securefiles", "boards"}
 
 var openCmd = &cobra.Command{
 	Use:   "open [recurso] [id|nombre]",
@@ -22,7 +22,7 @@ var openCmd = &cobra.Command{
 
 Recursos: project (por defecto), pipeline [id|nombre], run <build-id>,
 variables [nombre], workitem <id>, repo [nombre], approvals, environments,
-service-connections y boards.`,
+service-connections, securefiles y boards.`,
 	Example: `  azdevops open
   azdevops open pipeline 123
   azdevops open run 4567
@@ -92,6 +92,8 @@ func resourceURL(client *azdevops.Client, target, ref string) (string, error) {
 		return client.WebURL("_boards"), nil
 	case "approvals", "environments":
 		return client.WebURL("_environments"), nil
+	case "securefiles", "sf":
+		return client.WebURL("_library?itemType=SecureFiles"), nil
 	case "service-connections", "sc":
 		return client.WebURL("_settings/adminservices"), nil
 	case "pipeline", "pipelines":
