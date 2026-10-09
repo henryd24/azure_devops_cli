@@ -1,5 +1,9 @@
-# .github/workflows/release.yml
 name: Release Go Binaries
+
+# Security notes:
+# - Default token is read-only; only the release job elevates to contents: write.
+# - Third-party actions are pinned to a full commit SHA.
+# - The tag name is passed through an env var, never interpolated into the shell.
 
 on:
   push:
@@ -7,40 +11,51 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-and-release:
     name: Build and Release
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: write
+    env:
+      REF_NAME: ${{ github.ref_name }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
 
       - name: Build binaries
-        run: make build VERSION=${{ github.ref_name }}
-        
+        run: make build VERSION="${REF_NAME}"
+
       - name: Package artifacts
         run: |
-          # Crea un directorio para los archivos comprimidos
           mkdir -p release_packages
-          
-          # Comprime cada conjunto de binarios en un archivo tar.gz o .zip
-          cd dist/${{ github.ref_name }}
+
+          cd "dist/${REF_NAME}"
           tar -czf ../../release_packages/azdevops_linux_amd64.tar.gz -C linux-amd64 .
           tar -czf ../../release_packages/azdevops_linux_arm64.tar.gz -C linux-arm64 .
           tar -czf ../../release_packages/azdevops_darwin_amd64.tar.gz -C darwin-amd64 .
           tar -czf ../../release_packages/azdevops_darwin_arm64.tar.gz -C darwin-arm64 .
           zip -r ../../release_packages/azdevops_windows_amd64.zip windows-amd64
 
+      - name: Generate checksums
+        run: |
+          cd release_packages
+          sha256sum * > checksums.txt
+
       - name: Create GitHub Release
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
         with:
           artifacts: "release_packages/*"
           bodyFile: "RELEASE_NOTES.md"
